@@ -37,10 +37,10 @@ def registrar_medicion(
         lote.temp_max_ideal
     )
     
-    # Actualizamos el estado del lote en "caliente" (Real-time)
+    # Actualizamos el estado del lote en "caliente" 
     lote.estado_actual = nuevo_estado
 
-    # 4. Persistencia Industrial
+    # 4. Persistencia 
     nueva_lectura = models.Telemetria(**data.model_dump())
     db.add(nueva_lectura)
     db.commit()
@@ -51,6 +51,6 @@ def registrar_medicion(
         "status": "success",
         "timestamp": nueva_lectura.fecha_registro,
         "lote_id": data.lote_id,
-        "lote_status": nuevo_estado,  # <--- Cambia 'estado' por 'status'
+        "lote_status": nuevo_estado,  #Cambia 'estado' por 'status'
         "data": {"temp": data.temperatura, "hum": data.humedad}
     }

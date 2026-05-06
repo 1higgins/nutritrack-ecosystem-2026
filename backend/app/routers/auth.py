@@ -31,7 +31,13 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
+
+
 def asegurar_usuario_admin(db: Session):
+    """
+    Verifica si existe el administrador base. Si no existe, lo crea y
+    evita los errores 401 en bases de datos nuevas.
+    """
     admin_username = "admin_nutritrack"
     user = db.query(models.User).filter(models.User.username == admin_username).first()
     

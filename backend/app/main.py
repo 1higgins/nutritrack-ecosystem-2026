@@ -1,12 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# --- IMPORTACIONES ESTRATÉGICAS ---
 from . import models, database
-from .routers import auth, lotes, sensor # Conectamos los módulos especializados
+from .routers import auth, lotes, sensor # Conectamos los módulos 
 
 # Inicialización de la persistencia de datos
-# Aseguramos que todas las tablas (User, Lote, Telemetria) existan al arrancar
+# Aseguramos que todas las tablas existan al arrancar
 models.Base.metadata.create_all(bind=database.engine)
 
 # Configuración de la instancia principal de FastAPI
@@ -18,13 +17,11 @@ app = FastAPI(
         "y validación industrial de telemetría IoT."
     ),
     version="1.0.0",
-    docs_url="/docs",      # URL para la documentación técnica Swagger
-    redoc_url="/redoc"     # URL para documentación alternativa profesional
+    docs_url="/docs",  
+    redoc_url="/redoc"  
 )
 
-# --- CONFIGURACIÓN DE POLÍTICAS CORS ---
-# Crucial para permitir que la App Móvil (Flutter/RN) y 
-# la simulación en Godot puedan comunicarse con este servidor.
+# --- POLÍTICAS CORS ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -34,11 +31,9 @@ app.add_middleware(
 )
 
 # --- REGISTRO DE RUTAS MODULARES (MIGRACIÓN DE LÓGICA) ---
-# Al usar 'include_router', delegamos la responsabilidad a cada archivo 
-# dentro de la carpeta /routers/, manteniendo este archivo principal limpio.
 app.include_router(auth.router)    # Gestión de Identidad y Seguridad
 app.include_router(lotes.router)   # Control de Inventario y Trazabilidad
-app.include_router(sensor.router)  # Procesamiento de Datos IoT y Alertas
+app.include_router(sensor.router)
 
 @app.get("/", tags=["Health Check"])
 def check_health():
