@@ -31,7 +31,7 @@ class TelemetriaCreate(TelemetriaBase):
 
 class TelemetriaRead(TelemetriaBase):
     id: int
-    lote_id: int # Añadido para trazabilidad explícita
+    lote_id: int
     fecha_registro: datetime
     model_config = ConfigDict(from_attributes=True)
 
@@ -50,6 +50,5 @@ class LoteRead(LoteBase):
     estado_actual: str
     entregado: bool
     creador_id: Optional[int]
-    # Usamos List[TelemetriaRead] para que el operario vea el historial en la App
     telemetrias: List[TelemetriaRead] = [] 
     model_config = ConfigDict(from_attributes=True)

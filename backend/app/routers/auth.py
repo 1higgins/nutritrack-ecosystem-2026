@@ -10,16 +10,15 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 router = APIRouter(tags=["Seguridad"])
 
-# Configuración de Seguridad Industrial
+# Configuración de Seguridad
 SECRET_KEY = "NutriTrack_Secret_Key_2026_Secure" 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 120 # Aumentamos a 2 horas para estabilidad en pruebas
+ACCESS_TOKEN_EXPIRE_MINUTES = 120
 
-# Reemplaza la línea que tiene el error por esta:
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-# --- FUNCIONES DE APOYO ---
+# FUNCIONES DE APOYO
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
@@ -32,14 +31,13 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-# --- FUNCIÓN DE AUTO-REPARACIÓN (LA MAGIA) ---
 def asegurar_usuario_admin(db: Session):
     admin_username = "admin_nutritrack"
     user = db.query(models.User).filter(models.User.username == admin_username).first()
     
     if not user:
         print(f"🛠️ [SISTEMA] Creando usuario maestro: {admin_username}...")
-        hashed_pw = get_password_hash("nutritrack2026") # Password por defecto
+        hashed_pw = get_password_hash("nutritrack2026")
         new_admin = models.User(
             username=admin_username,
             hashed_password=hashed_pw,
@@ -51,7 +49,6 @@ def asegurar_usuario_admin(db: Session):
         return new_admin
     return user
 
-# --- DEPENDENCIA PARA PROTEGER RUTAS ---
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database.get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -97,7 +94,7 @@ def registrar_usuario(usuario: schemas.UserCreate, db: Session = Depends(databas
     return nuevo_usuario
     
 # --- ENDPOINT DE LOGIN ---
-@router.post("/token", response_model=schemas.Token)
+@router.post("/login", response_model=schemas.Token)
 def login_para_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
     
     user = db.query(models.User).filter(models.User.username == form_data.username).first()

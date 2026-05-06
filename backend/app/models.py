@@ -22,10 +22,9 @@ class Lote(Base):
     temp_max_ideal = Column(Float, nullable=False)
     estado_actual = Column(String, default="OPTIMO") 
     
-    # --- MEJORAS INDUSTRIALES ---
     entregado = Column(Boolean, default=False) # Si es True, el sensor ya no puede escribir
     fecha_creacion = Column(DateTime, default=datetime.datetime.utcnow)
-    creador_id = Column(Integer, ForeignKey("users.id"), nullable=True) # Quién registró el lote
+    creador_id = Column(Integer, ForeignKey("users.id"), nullable=True) # Muestra quien registro el lote
     
     creador = relationship("User", back_populates="lotes_creados")
     telemetrias = relationship("Telemetria", back_populates="lote_perteneciente")

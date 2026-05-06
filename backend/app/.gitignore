@@ -12,3 +12,6 @@ env/
 
 # VS Code
 .vscode/
+
+**/__pycache__/
+*.pyc

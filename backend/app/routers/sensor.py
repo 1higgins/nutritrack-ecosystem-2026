@@ -13,8 +13,7 @@ def registrar_medicion(
     current_user: models.User = Depends(get_current_user) 
 ):
     """
-    Recibe y procesa telemetría. Solo accesible con Token JWT válido
-    y usuario existente en Base de Datos.
+    Recibe y procesa telemetría.
     """
     # 1. Validación de existencia del Lote
     lote = db.query(models.Lote).filter(models.Lote.id == data.lote_id).first()
