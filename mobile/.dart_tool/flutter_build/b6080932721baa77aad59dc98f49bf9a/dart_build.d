@@ -1,0 +1,1 @@
+ /Users/higginsonnn/Desktop/nutritrack-ecosystem-2026-rama-de-desarrollo-backend-iot/mobile/.dart_tool/flutter_build/b6080932721baa77aad59dc98f49bf9a/dart_build_result.json: 

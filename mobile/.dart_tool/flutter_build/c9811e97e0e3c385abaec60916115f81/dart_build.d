@@ -1,0 +1,1 @@
+ /Users/higginsonnn/Desktop/nutritrack\ ecosistema/mobile/.dart_tool/flutter_build/c9811e97e0e3c385abaec60916115f81/dart_build_result.json: 
