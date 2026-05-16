@@ -38,7 +38,7 @@ def get_current_user(
 ) -> models.User:
     """
     Interpela el Token JWT, valida la firma y recupera el objeto User de la DB.
-    Esta es la barrera principal para endpoints protegidos.
+    Esta es la barrera principal para endpoints protegidos jhonatan.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -136,7 +136,6 @@ def asegurar_usuario_semilla(db: Session):
         db.commit()
         # No hace falta refresh aquí, es un proceso de inicio
 
-# --- ENDPOINT DE LOGIN (INTERCAMBIO DE TOKEN) ---
 # --- ENDPOINT DE LOGIN (INTERCAMBIO DE TOKEN) ---
 @router.post("/token", response_model=schemas.Token)
 def login_para_access_token(

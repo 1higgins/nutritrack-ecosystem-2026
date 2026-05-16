@@ -60,14 +60,12 @@ class _LotesPageState extends State<LotesPage> {
     try {
       // 2. Ejecutar la petición HTTP real mapeando los controladores
       final bool exito = await _loteService.registrarLote(
-        token: widget.token, // Usamos el token que pasamos por constructor
+        token: widget.token,
         codigoLote: _codigoController.text.trim(),
         producto: _productoController.text.trim(),
         tempMinIdeal: double.parse(_tempMinController.text.trim()),
         tempMaxIdeal: double.parse(_tempMaxController.text.trim()),
-        cantidad: int.parse(
-          _cantidadController.text.trim(),
-        ), // Backend pide entero
+        cantidad: int.parse(_cantidadController.text.trim()),
         passwordLote: _passwordLoteController.text.trim(),
       );
 
