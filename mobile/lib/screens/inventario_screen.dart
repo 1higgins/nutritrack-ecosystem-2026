@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 // ─── Model ────────────────────────────────────────────────────────────────────
 enum ProductStatus { bueno, alerta, critico }
@@ -28,7 +30,9 @@ class Product {
 
 // ─── InventarioPage ───────────────────────────────────────────────────────────
 class InventarioPage extends StatefulWidget {
-  const InventarioPage({super.key});
+  final String token; // <--- Añadido para recibir credenciales del Backend
+
+  const InventarioPage({super.key, required this.token});
 
   @override
   State<InventarioPage> createState() => _InventarioPageState();
@@ -44,94 +48,95 @@ class _InventarioPageState extends State<InventarioPage> {
   static const Color appleOrange = Color(0xFFFF9F0A);
   static const Color appleRed = Color(0xFFFF453A);
 
-  // Jhonatan esta es la parte donde tendras que implementar lo logica, yo puse datos de ejemplo para mostrar la interfaz, pero tu debes
-  //conectar con el backend para traer los datos reales de los productos y sus estados.
-  //Puedes usar la clase Product como modelo para representar cada producto en el inventario, y luego llenar la lista _allProducts con los datos que recibas del backend.
-  //Asegúrate de actualizar el estado de la aplicación cada vez que recibas nuevos datos para que la interfaz se actualice correctamente.
+  // --- LOGICA BACKEND ASIGNADA ---
+  List<Product> _allProducts = []; // <-- Así de vacía, el backend la llenará
+  bool _isLoading = true;
 
-  static const _allProducts = [
-    Product(
-      name: 'Carne Refrigerada',
-      lot: 'LOT-Z67DS1EE',
-      quantity: 451,
-      temperature: -1.7,
-      status: ProductStatus.bueno,
-      bannerColor: Color(0xFFFFEEED),
-      accentColor: appleRed,
-      bannerIcon: Icons.set_meal_rounded,
-    ),
-    Product(
-      name: 'Lácteos Frescos',
-      lot: 'LOT-K9AG55H7',
-      quantity: 364,
-      temperature: -0.9,
-      status: ProductStatus.bueno,
-      bannerColor: Color(0xFFEDF9F0),
-      accentColor: appleGreen,
-      bannerIcon: Icons.water_drop_rounded,
-    ),
-    Product(
-      name: 'Pescado Congelado',
-      lot: 'LOT-KEUH0SK0',
-      quantity: 222,
-      temperature: 8.5,
-      status: ProductStatus.critico,
-      bannerColor: Color(0xFFFFF0EE),
-      accentColor: appleRed,
-      bannerIcon: Icons.set_meal_outlined,
-    ),
-    Product(
-      name: 'Verduras Frescas',
-      lot: 'LOT-000PTPW',
-      quantity: 538,
-      temperature: -1.4,
-      status: ProductStatus.bueno,
-      bannerColor: Color(0xFFEAF3DE),
-      accentColor: appleGreen,
-      bannerIcon: Icons.eco_rounded,
-    ),
-    Product(
-      name: 'Frutas Importadas',
-      lot: 'LOT-FRU88XZ2',
-      quantity: 190,
-      temperature: 4.2,
-      status: ProductStatus.alerta,
-      bannerColor: Color(0xFFFFF4E5),
-      accentColor: appleOrange,
-      bannerIcon: Icons.apple_rounded,
-    ),
-    Product(
-      name: 'Quesos Madurados',
-      lot: 'LOT-QSM22KL9',
-      quantity: 87,
-      temperature: 2.1,
-      status: ProductStatus.bueno,
-      bannerColor: Color(0xFFFFFBED),
-      accentColor: appleOrange,
-      bannerIcon: Icons.bakery_dining_rounded,
-    ),
-    Product(
-      name: 'Embutidos Premium',
-      lot: 'LOT-EMB77PP1',
-      quantity: 312,
-      temperature: 0.5,
-      status: ProductStatus.bueno,
-      bannerColor: Color(0xFFFFEEED),
-      accentColor: appleRed,
-      bannerIcon: Icons.lunch_dining_rounded,
-    ),
-    Product(
-      name: 'Helados y Postres',
-      lot: 'LOT-HEL44RX8',
-      quantity: 155,
-      temperature: -14.3,
-      status: ProductStatus.bueno,
-      bannerColor: Color(0xFFE5F1FF),
-      accentColor: appleBlue,
-      bannerIcon: Icons.icecream_rounded,
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _fetchLotesReal(); // Carga los datos apenas se abra la pantalla
+  }
 
+  Future<void> _fetchLotesReal() async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+
+    // Si estás en emulador Android oficial recuerda cambiar localhost por 10.0.2.2
+    final String url = 'http://localhost:8000/lotes/';
+
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization':
+              'Bearer ${widget.token}', // Usamos el token que viene de HomeScreen
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonList = json.decode(response.body);
+
+        setState(() {
+          _allProducts = jsonList.map((item) {
+            ProductStatus status;
+            Color accent;
+            Color bannerBg;
+            IconData icon;
+
+            // Mapeo exacto basado en el estado calculado por tu alerts.py en el backend
+            switch (item['estado_actual']) {
+              case 'OPTIMO':
+                status = ProductStatus.bueno;
+                accent = appleGreen;
+                bannerBg = const Color(0xFFEDF9F0);
+                icon = Icons.inventory_2_rounded;
+                break;
+              case 'ADVERTENCIA':
+                status = ProductStatus.alerta;
+                accent = appleOrange;
+                bannerBg = const Color(0xFFFFF4E5);
+                icon = Icons.warning_amber_rounded;
+                break;
+              default:
+                status = ProductStatus.critico;
+                accent = appleRed;
+                bannerBg = const Color(0xFFFFF0EE);
+                icon = Icons.error_rounded;
+            }
+
+            return Product(
+              name: item['producto'],
+              lot: item['codigo_lote'],
+              quantity: item['cantidad'],
+              temperature: item['temp_max_ideal'],
+              status: status,
+              bannerColor: bannerBg,
+              accentColor: accent,
+              bannerIcon: icon,
+            );
+          }).toList();
+          _isLoading = false;
+        });
+      } else {
+        throw Exception('Error del servidor: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error de conexión: $e'),
+            backgroundColor: appleRed,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  // --- VARIABLES DE FILTRO Y BÚSQUEDA DE HIGGINS (SIGUEN IGUAL) ---
   ProductStatus? _activeFilter;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
@@ -166,298 +171,310 @@ class _InventarioPageState extends State<InventarioPage> {
       child: Scaffold(
         backgroundColor: bgColor,
         body: SafeArea(
-          child: CustomScrollView(
-            slivers: [
-              // Header: Título + subtítulo + back button
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                  child: Row(
-                    children: [
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Inventario',
-                              style: TextStyle(
-                                fontSize: 34,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -1.4,
-                                color: titleColor,
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator(color: appleBlue))
+              : RefreshIndicator(
+                  color: appleBlue,
+                  onRefresh: _fetchLotesReal,
+                  child: CustomScrollView(
+                    slivers: [
+                      // Header: Título + subtítulo + back button
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                          child: Row(
+                            children: [
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Inventario',
+                                      style: TextStyle(
+                                        fontSize: 34,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: -1.4,
+                                        color: titleColor,
+                                      ),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      'Gestión de productos refrigerados',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: labelGray,
+                                        letterSpacing: -0.2,
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              'Gestión de productos refrigerados',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: labelGray,
-                                letterSpacing: -0.2,
-                                fontWeight: FontWeight.w400,
+                              // Back button (if pushed from HomeScreen)
+                              GestureDetector(
+                                onTap: () => Navigator.maybePop(context),
+                                child: Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: appleBlue.withOpacity(0.10),
+                                  ),
+                                  child: const Icon(
+                                    Icons.store_rounded,
+                                    size: 18,
+                                    color: appleBlue,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                      // Back button (if pushed from HomeScreen)
-                      GestureDetector(
-                        onTap: () => Navigator.maybePop(context),
-                        child: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: appleBlue.withOpacity(0.10),
-                          ),
-                          child: const Icon(
-                            Icons.store_rounded,
-                            size: 18,
-                            color: appleBlue,
+
+                      // Tarjetas de estado (Total, Buenos, Alerta, Crítico)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                          child: Row(
+                            children: [
+                              _StatCard(
+                                value: _allProducts.length.toString(),
+                                label: 'Total',
+                                textColor: titleColor,
+                                bg: cardColor,
+                              ),
+                              const SizedBox(width: 10),
+                              _StatCard(
+                                value: _countBuenos.toString(),
+                                label: 'Buenos',
+                                textColor: Colors.white,
+                                bg: appleGreen,
+                              ),
+                              const SizedBox(width: 10),
+                              _StatCard(
+                                value: _countAlerta.toString(),
+                                label: 'Alerta',
+                                textColor: Colors.white,
+                                bg: appleOrange,
+                              ),
+                              const SizedBox(width: 10),
+                              _StatCard(
+                                value: _countCritico.toString(),
+                                label: 'Crítico',
+                                textColor: Colors.white,
+                                bg: appleRed,
+                              ),
+                            ],
                           ),
                         ),
                       ),
+
+                      // Barra de busqueda
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                          child: Container(
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: cardColor,
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                const SizedBox(width: 12),
+                                const Icon(
+                                  Icons.search_rounded,
+                                  size: 18,
+                                  color: labelGray,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextField(
+                                    controller: _searchController,
+                                    onChanged: (v) =>
+                                        setState(() => _searchQuery = v),
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      color: titleColor,
+                                      letterSpacing: -0.2,
+                                    ),
+                                    decoration: const InputDecoration(
+                                      hintText: 'Buscar producto...',
+                                      hintStyle: TextStyle(
+                                        color: Color(0xFFC7C7CC),
+                                        fontSize: 15,
+                                        letterSpacing: -0.2,
+                                      ),
+                                      border: InputBorder.none,
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                  ),
+                                ),
+                                if (_searchQuery.isNotEmpty)
+                                  GestureDetector(
+                                    onTap: () {
+                                      _searchController.clear();
+                                      setState(() => _searchQuery = '');
+                                    },
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                      ),
+                                      child: Icon(
+                                        Icons.cancel_rounded,
+                                        size: 18,
+                                        color: labelGray,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // ── Filter chips ──────────────────────────────────────────
+                      SliverToBoxAdapter(
+                        child: SizedBox(
+                          height: 52,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.fromLTRB(20, 17, 20, 0),
+                            children: [
+                              _FilterChip(
+                                label: 'Todos',
+                                isActive: _activeFilter == null,
+                                onTap: () =>
+                                    setState(() => _activeFilter = null),
+                              ),
+                              const SizedBox(width: 8),
+                              _FilterChip(
+                                label: 'Buenos',
+                                isActive: _activeFilter == ProductStatus.bueno,
+                                activeColor: appleGreen,
+                                onTap: () => setState(
+                                  () => _activeFilter = ProductStatus.bueno,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              _FilterChip(
+                                label: 'Alerta',
+                                isActive: _activeFilter == ProductStatus.alerta,
+                                activeColor: appleOrange,
+                                onTap: () => setState(
+                                  () => _activeFilter = ProductStatus.alerta,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              _FilterChip(
+                                label: 'Crítico',
+                                isActive:
+                                    _activeFilter == ProductStatus.critico,
+                                activeColor: appleRed,
+                                onTap: () => setState(
+                                  () => _activeFilter = ProductStatus.critico,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // Productos header + count
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 24, 20, 14),
+                          child: Row(
+                            children: [
+                              const Text(
+                                'Productos',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.8,
+                                  color: titleColor,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: appleBlue.withOpacity(0.10),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${_filtered.length}',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: appleBlue,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // Productos lista
+                      _filtered.isEmpty
+                          ? SliverToBoxAdapter(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 60,
+                                ),
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.search_off_rounded,
+                                      size: 48,
+                                      color: labelGray.withOpacity(0.4),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    const Text(
+                                      'Sin resultados',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: labelGray,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, i) => Padding(
+                                  padding: EdgeInsets.fromLTRB(
+                                    20,
+                                    0,
+                                    20,
+                                    i == _filtered.length - 1 ? 32 : 12,
+                                  ),
+                                  child: _AnimatedProductCard(
+                                    index: i,
+                                    product: _filtered[i],
+                                  ),
+                                ),
+                                childCount: _filtered.length,
+                              ),
+                            ),
                     ],
                   ),
                 ),
-              ),
-
-              // Tarjetas de estado (Total, Buenos, Alerta, Crítico)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                  child: Row(
-                    children: [
-                      _StatCard(
-                        value: _allProducts.length.toString(),
-                        label: 'Total',
-                        textColor: titleColor,
-                        bg: cardColor,
-                      ),
-                      const SizedBox(width: 10),
-                      _StatCard(
-                        value: _countBuenos.toString(),
-                        label: 'Buenos',
-                        textColor: Colors.white,
-                        bg: appleGreen,
-                      ),
-                      const SizedBox(width: 10),
-                      _StatCard(
-                        value: _countAlerta.toString(),
-                        label: 'Alerta',
-                        textColor: Colors.white,
-                        bg: appleOrange,
-                      ),
-                      const SizedBox(width: 10),
-                      _StatCard(
-                        value: _countCritico.toString(),
-                        label: 'Crítico',
-                        textColor: Colors.white,
-                        bg: appleRed,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Barra de busqueda
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-                  child: Container(
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: cardColor,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        const SizedBox(width: 12),
-                        const Icon(
-                          Icons.search_rounded,
-                          size: 18,
-                          color: labelGray,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: _searchController,
-                            onChanged: (v) => setState(() => _searchQuery = v),
-                            style: const TextStyle(
-                              fontSize: 15,
-                              color: titleColor,
-                              letterSpacing: -0.2,
-                            ),
-                            decoration: const InputDecoration(
-                              hintText: 'Buscar producto...',
-                              hintStyle: TextStyle(
-                                color: Color(0xFFC7C7CC),
-                                fontSize: 15,
-                                letterSpacing: -0.2,
-                              ),
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                          ),
-                        ),
-                        if (_searchQuery.isNotEmpty)
-                          GestureDetector(
-                            onTap: () {
-                              _searchController.clear();
-                              setState(() => _searchQuery = '');
-                            },
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 12),
-                              child: Icon(
-                                Icons.cancel_rounded,
-                                size: 18,
-                                color: labelGray,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // ── Filter chips ──────────────────────────────────────────
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 52,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.fromLTRB(20, 17, 20, 0),
-                    children: [
-                      _FilterChip(
-                        label: 'Todos',
-                        isActive: _activeFilter == null,
-                        onTap: () => setState(() => _activeFilter = null),
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Buenos',
-                        isActive: _activeFilter == ProductStatus.bueno,
-                        activeColor: appleGreen,
-                        onTap: () =>
-                            setState(() => _activeFilter = ProductStatus.bueno),
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Alerta',
-                        isActive: _activeFilter == ProductStatus.alerta,
-                        activeColor: appleOrange,
-                        onTap: () => setState(
-                          () => _activeFilter = ProductStatus.alerta,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Crítico',
-                        isActive: _activeFilter == ProductStatus.critico,
-                        activeColor: appleRed,
-                        onTap: () => setState(
-                          () => _activeFilter = ProductStatus.critico,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Productos header + count
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 14),
-                  child: Row(
-                    children: [
-                      const Text(
-                        'Productos',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.8,
-                          color: titleColor,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: appleBlue.withOpacity(0.10),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-
-                        // Este muestra el número de productos que coinciden con el filtro de búsqueda y estado
-                        child: Text(
-                          '${_filtered.length}',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: appleBlue,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Productos lista
-              _filtered.isEmpty
-                  ? SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 60),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.search_off_rounded,
-                              size: 48,
-                              color: labelGray.withOpacity(0.4),
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'Sin resultados',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: labelGray,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  : SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, i) => Padding(
-                          padding: EdgeInsets.fromLTRB(
-                            20,
-                            0,
-                            20,
-                            i == _filtered.length - 1 ? 32 : 12,
-                          ),
-                          child: _AnimatedProductCard(
-                            index: i,
-                            product: _filtered[i],
-                          ),
-                        ),
-                        childCount: _filtered.length,
-                      ),
-                    ),
-            ],
-          ),
         ),
       ),
     );

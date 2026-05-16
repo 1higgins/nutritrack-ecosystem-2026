@@ -333,10 +333,11 @@ class _DashCard extends StatelessWidget {
         page = const TemperaturaPage();
         break;
       case _Dest.lotes:
-        page = LotesPage(token: token); // Pass token if needed
+        page = LotesPage(token: token); // OPA registra enviando el token
         break;
       case _Dest.inventario:
-        page = const InventarioPage();
+        // ── CORRECCIÓN CRÍTICA 1: Le pasamos el token real a la consulta de la lista
+        page = InventarioPage(token: token);
         break;
     }
     Navigator.push(context, MaterialPageRoute(builder: (_) => page));
