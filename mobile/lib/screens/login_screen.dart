@@ -37,9 +37,20 @@ class _LoginScreenState extends State<LoginScreen> {
           _passwordController.text,
         );
         if (success != null) {
+          String userName = _usernameController.text.trim();
+
+          String formattedName = userName.isNotEmpty
+              ? userName[0].toUpperCase() + userName.substring(1)
+              : 'Usuario';
+
+          if (!mounted) return;
+
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => HomeScreen()),
+            MaterialPageRoute(
+              builder: (context) =>
+                  HomeScreen(username: formattedName, token: success.token),
+            ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(

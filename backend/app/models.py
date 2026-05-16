@@ -25,6 +25,7 @@ class Lote(Base):
     producto = Column(String, nullable=False)
     temp_min_ideal = Column(Float, nullable=False)
     temp_max_ideal = Column(Float, nullable=False)
+    cantidad = Column(Integer, nullable=False)
     
     # --- NUEVO: Seguridad de Acceso ---
     password_lote = Column(String, nullable=False) 

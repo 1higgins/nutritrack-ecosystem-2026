@@ -69,6 +69,7 @@ class LoteBase(BaseModel):
     producto: str = Field(..., min_length=1, description="Nombre del producto")
     temp_min_ideal: float = Field(..., description="Límite térmico inferior")
     temp_max_ideal: float = Field(..., description="Límite térmico superior")
+    cantidad: int = Field(..., gt=0, description="Cantidad de unidades en el lote")
 
     @model_validator(mode='after')
     def validar_datos_lote(self) -> 'LoteBase':
@@ -114,7 +115,7 @@ class LoteRead(LoteBase):
     creador_id: int
     custodio_id: Optional[int] = None # Para saber qué OPT lo tiene vinculado
     model_config = ConfigDict(from_attributes=True)
-
+    
 # --- NUEVO: Esquema para el 'Handshake' de seguridad del OPT ---
 class LoteVincular(BaseModel):
     nombre_opa: str       # El transportista debe saber quién le dio la carga

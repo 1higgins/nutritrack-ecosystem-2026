@@ -1,20 +1,13 @@
 import 'package:flutter/material.dart';
 import 'registro_screen.dart';
 import 'inventario_screen.dart';
-
-class TemperaturaPage extends StatelessWidget {
-  const TemperaturaPage({super.key});
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Temperatura')),
-    body: const Center(child: Text('Monitoreo de temperatura')),
-  );
-}
+import 'temperatura_screen.dart';
 
 // ─── HomeScreen ───────────────────────────────────────────────────────────────
 class HomeScreen extends StatelessWidget {
   final String username;
-  const HomeScreen({super.key, this.username = 'Usuario'});
+  final String token;
+  const HomeScreen({super.key, required this.username, required this.token});
 
   static const Color appleBlue = Color(0xFF007AFF);
   static const Color bgColor = Color(0xFFF2F2F7);
@@ -182,7 +175,7 @@ class HomeScreen extends StatelessWidget {
                     20,
                     i == _cards.length - 1 ? 24 : 14,
                   ),
-                  child: _AnimatedCard(index: i, data: _cards[i]),
+                  child: _AnimatedCard(index: i, data: _cards[i], token: token),
                 ),
                 childCount: _cards.length,
               ),
@@ -198,7 +191,12 @@ class HomeScreen extends StatelessWidget {
 class _AnimatedCard extends StatefulWidget {
   final int index;
   final _CardData data;
-  const _AnimatedCard({required this.index, required this.data});
+  final String token;
+  const _AnimatedCard({
+    required this.index,
+    required this.data,
+    required this.token,
+  });
 
   @override
   State<_AnimatedCard> createState() => _AnimatedCardState();
@@ -242,7 +240,7 @@ class _AnimatedCardState extends State<_AnimatedCard>
       opacity: _fade,
       child: SlideTransition(
         position: _slide,
-        child: _DashCard(data: widget.data),
+        child: _DashCard(data: widget.data, token: widget.token),
       ),
     );
   }
@@ -325,7 +323,8 @@ class _CardData {
 // ─── Dashboard card (full width) ─────────────────────────────────────────────
 class _DashCard extends StatelessWidget {
   final _CardData data;
-  const _DashCard({required this.data});
+  final String token;
+  const _DashCard({required this.data, required this.token});
 
   void _navigate(BuildContext context) {
     Widget page;
@@ -334,7 +333,7 @@ class _DashCard extends StatelessWidget {
         page = const TemperaturaPage();
         break;
       case _Dest.lotes:
-        page = const LotesPage();
+        page = LotesPage(token: token); // Pass token if needed
         break;
       case _Dest.inventario:
         page = const InventarioPage();

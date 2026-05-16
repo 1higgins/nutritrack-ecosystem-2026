@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:mobile/services/lote_service.dart';
 
 class LotesPage extends StatefulWidget {
-  const LotesPage({super.key});
+  final String token;
+  const LotesPage({super.key, required this.token});
 
   @override
   State<LotesPage> createState() => _LotesPageState();
@@ -22,6 +24,7 @@ class _LotesPageState extends State<LotesPage> {
   final _tempMinController = TextEditingController();
   final _tempMaxController = TextEditingController();
   final _passwordLoteController = TextEditingController();
+  final _cantidadController = TextEditingController();
 
   bool _isLoading = false;
 
@@ -32,25 +35,83 @@ class _LotesPageState extends State<LotesPage> {
     _tempMinController.dispose();
     _tempMaxController.dispose();
     _passwordLoteController.dispose();
+    _cantidadController.dispose();
     super.dispose();
   }
 
+  // 1. Instanciamos el servicio (asegúrate de importar tu archivo lote_service.dart arriba)
+  final LoteService _loteService = LoteService();
+
   void _enviarLoteAlBackend() async {
+    // Validar el formulario de Flutter
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Por favor, rellene todos los campos requeridos.'),
+          backgroundColor: Colors.orangeAccent,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
     }
 
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 2));
 
-    if (mounted) {
-      setState(() => _isLoading = false);
-      Navigator.pop(context);
+    try {
+      // 2. Ejecutar la petición HTTP real mapeando los controladores
+      final bool exito = await _loteService.registrarLote(
+        token: widget.token, // Usamos el token que pasamos por constructor
+        codigoLote: _codigoController.text.trim(),
+        producto: _productoController.text.trim(),
+        tempMinIdeal: double.parse(_tempMinController.text.trim()),
+        tempMaxIdeal: double.parse(_tempMaxController.text.trim()),
+        cantidad: int.parse(
+          _cantidadController.text.trim(),
+        ), // Backend pide entero
+        passwordLote: _passwordLoteController.text.trim(),
+      );
+
+      if (!mounted) return;
+
+      if (exito) {
+        // Alerta de éxito
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Lote ${_codigoController.text} registrado con éxito.',
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        // Volvemos al Home automáticamente
+        Navigator.pop(context);
+      } else {
+        // Alerta si el servicio retornó false (error de rol o duplicado)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Error del servidor: Verifica tus permisos o si el lote ya existe.',
+            ),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      // En caso de que el double.parse o int.parse fallen por caracteres inválidos
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Por favor, introduce formatos numéricos válidos en temperaturas y cantidad.',
+          ),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -148,7 +209,7 @@ class _LotesPageState extends State<LotesPage> {
                         _buildFormContainer(
                           child: _buildInputField(
                             hint: "Cantidad en unidades",
-                            controller: _passwordLoteController,
+                            controller: _cantidadController,
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
                             ),
@@ -189,6 +250,20 @@ class _LotesPageState extends State<LotesPage> {
                             ],
                           ),
                         ),
+                        const SizedBox(height: 20),
+
+                        _buildSectionHeader('PASSWORD DE LOTE'),
+                        _buildFormContainer(
+                          child: _buildInputField(
+                            hint: "Contraseña del lote",
+                            controller: _passwordLoteController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            obscureText: true,
+                          ),
+                        ),
+
                         const SizedBox(height: 50),
 
                         // Botón de registro de lote
