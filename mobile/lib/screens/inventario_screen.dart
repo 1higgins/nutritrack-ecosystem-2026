@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'lote_detail_screen.dart';
 
 // ─── Model ────────────────────────────────────────────────────────────────────
 enum ProductStatus { bueno, alerta, critico }
@@ -702,139 +703,156 @@ class _ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isCritical = product.status == ProductStatus.critico;
 
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
+    return GestureDetector(
+      onTap: () {
+        // Buscamos el token del backend de forma segura desde el estado del ancestro
+        final parentState = context
+            .findAncestorStateOfType<_InventarioPageState>();
+        final String token = parentState?.widget.token ?? '';
+
+        // Navegamos al nuevo archivo de detalle enviando el producto y su token
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                LoteDetailScreen(product: product, token: token),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Banner
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
             ),
-            child: Stack(
-              children: [
-                Container(
-                  width: double.infinity,
-                  height: 120,
-                  color: product.bannerColor,
-                  child: Center(
-                    child: Icon(
-                      product.bannerIcon,
-                      size: 64,
-                      color: product.accentColor.withOpacity(0.22),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Banner
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+              child: Stack(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    height: 120,
+                    color: product.bannerColor,
+                    child: Center(
+                      child: Icon(
+                        product.bannerIcon,
+                        size: 64,
+                        color: product.accentColor.withOpacity(0.22),
+                      ),
                     ),
                   ),
-                ),
-                // Status badge top-right
-                Positioned(top: 12, right: 14, child: _statusBadge()),
-              ],
+                  // Status badge top-right
+                  Positioned(top: 12, right: 14, child: _statusBadge()),
+                ],
+              ),
             ),
-          ),
 
-          // Body
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Icon + name + lot
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: product.accentColor.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(12),
+            // Body
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Icon + name + lot
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: product.accentColor.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          _statusIcon(),
+                          color: product.accentColor,
+                          size: 22,
+                        ),
                       ),
-                      child: Icon(
-                        _statusIcon(),
-                        color: product.accentColor,
-                        size: 22,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            product.nombre,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.5,
-                              color: titleColor,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              product.nombre, // Usando tu variable en español
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.5,
+                                color: titleColor,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            product.lote,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: labelGray,
-                              letterSpacing: -0.1,
+                            const SizedBox(height: 2),
+                            Text(
+                              product.lote, // Usando tu variable en español
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: labelGray,
+                                letterSpacing: -0.1,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 14,
-                      color: labelGray.withOpacity(0.5),
-                    ),
-                  ],
-                ),
+                      Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 14,
+                        color: labelGray.withOpacity(0.5),
+                      ),
+                    ],
+                  ),
 
-                const SizedBox(height: 14),
-                const Divider(height: 1, color: Color(0xFFF2F2F7)),
-                const SizedBox(height: 14),
+                  const SizedBox(height: 14),
+                  const Divider(height: 1, color: Color(0xFFF2F2F7)),
+                  const SizedBox(height: 14),
 
-                // ── Meta grid 2×2 ───────────────────────────────────
-                Row(
-                  children: [
-                    Expanded(
-                      child: _MetaTile(
-                        icon: Icons.inventory_2_outlined,
-                        label: 'Cantidad',
-                        value: product.cantidad > 1
-                            ? '${product.cantidad} unidades'
-                            : '${product.cantidad} unidad',
-                        valueColor: titleColor,
+                  // ── Meta grid 2×2 ───────────────────────────────────
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _MetaTile(
+                          icon: Icons.inventory_2_outlined,
+                          label: 'Cantidad',
+                          value: product.cantidad > 1
+                              ? '${product.cantidad} unidades'
+                              : '${product.cantidad} unidad',
+                          valueColor: titleColor,
+                        ),
                       ),
-                    ),
-                    Expanded(
-                      child: _MetaTile(
-                        icon: Icons.thermostat_rounded,
-                        label: 'Temperatura',
-                        value: '${product.temperatura}°C',
-                        valueColor: isCritical
-                            ? const Color(0xFFFF453A)
-                            : titleColor,
+                      Expanded(
+                        child: _MetaTile(
+                          icon: Icons.thermostat_rounded,
+                          label: 'Temperatura',
+                          value: '${product.temperatura}°C',
+                          valueColor: isCritical
+                              ? const Color(0xFFFF453A)
+                              : titleColor,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-              ],
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
