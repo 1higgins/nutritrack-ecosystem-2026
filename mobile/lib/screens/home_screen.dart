@@ -109,22 +109,56 @@ class HomeScreen extends StatelessWidget {
                             ],
                           ),
                         ),
-                        Container(
-                          width: 46,
-                          height: 46,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: appleBlue.withOpacity(0.12),
+                        PopupMenuButton<String>(
+                          offset: const Offset(0, 60),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
                           ),
-                          child: Center(
-                            child: Text(
-                              username.isNotEmpty
-                                  ? username[0].toUpperCase()
-                                  : 'U',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                                color: appleBlue,
+                          onSelected: (value) {
+                            if (value == 'logout') {
+                              // logica para cerrar sesión, como limpiar token y navegar a login
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(
+                              value: 'logout',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.logout,
+                                    color: Colors.red,
+                                    size: 20,
+                                  ),
+                                  SizedBox(width: 10),
+                                  Text(
+                                    'Cerrar sesión',
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          icon: Container(
+                            width: 46,
+                            height: 46,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: appleBlue.withOpacity(0.12),
+                            ),
+                            child: Center(
+                              child: Text(
+                                username.isNotEmpty
+                                    ? username[0].toUpperCase()
+                                    : 'U',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w600,
+                                  color: appleBlue,
+                                ),
                               ),
                             ),
                           ),
@@ -333,10 +367,9 @@ class _DashCard extends StatelessWidget {
         page = const TemperaturaPage();
         break;
       case _Dest.lotes:
-        page = LotesPage(token: token); // OPA registra enviando el token
+        page = LotesPage(token: token);
         break;
       case _Dest.inventario:
-        // ── CORRECCIÓN CRÍTICA 1: Le pasamos el token real a la consulta de la lista
         page = InventarioPage(token: token);
         break;
     }

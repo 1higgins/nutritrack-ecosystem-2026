@@ -7,20 +7,20 @@ import 'package:http/http.dart' as http;
 enum ProductStatus { bueno, alerta, critico }
 
 class Product {
-  final String name;
-  final String lot;
-  final int quantity;
-  final double temperature;
+  final String nombre;
+  final String lote;
+  final int cantidad;
+  final double temperatura;
   final ProductStatus status;
   final Color bannerColor;
   final Color accentColor;
   final IconData bannerIcon;
 
   const Product({
-    required this.name,
-    required this.lot,
-    required this.quantity,
-    required this.temperature,
+    required this.nombre,
+    required this.lote,
+    required this.cantidad,
+    required this.temperatura,
     required this.status,
     required this.bannerColor,
     required this.accentColor,
@@ -30,7 +30,7 @@ class Product {
 
 // ─── InventarioPage ───────────────────────────────────────────────────────────
 class InventarioPage extends StatefulWidget {
-  final String token; // <--- Añadido para recibir credenciales del Backend
+  final String token;
 
   const InventarioPage({super.key, required this.token});
 
@@ -48,8 +48,7 @@ class _InventarioPageState extends State<InventarioPage> {
   static const Color appleOrange = Color(0xFFFF9F0A);
   static const Color appleRed = Color(0xFFFF453A);
 
-  // --- LOGICA BACKEND ASIGNADA ---
-  List<Product> _allProducts = []; // <-- Así de vacía, el backend la llenará
+  List<Product> _allProducts = [];
   bool _isLoading = true;
 
   @override
@@ -62,8 +61,7 @@ class _InventarioPageState extends State<InventarioPage> {
     if (!mounted) return;
     setState(() => _isLoading = true);
 
-    // Si estás en emulador Android oficial recuerda cambiar localhost por 10.0.2.2
-    final String url = 'http://localhost:8000/lotes/';
+    final String url = 'http://127.0.0.1:8000/lotes/';
 
     try {
       final response = await http.get(
@@ -107,10 +105,10 @@ class _InventarioPageState extends State<InventarioPage> {
             }
 
             return Product(
-              name: item['producto'],
-              lot: item['codigo_lote'],
-              quantity: item['cantidad'],
-              temperature: item['temp_max_ideal'],
+              nombre: item['producto'],
+              lote: item['codigo_lote'],
+              cantidad: item['cantidad'],
+              temperatura: item['temp_max_ideal'],
               status: status,
               bannerColor: bannerBg,
               accentColor: accent,
@@ -144,7 +142,7 @@ class _InventarioPageState extends State<InventarioPage> {
   List<Product> get _filtered {
     return _allProducts.where((p) {
       final matchStatus = _activeFilter == null || p.status == _activeFilter;
-      final matchSearch = p.name.toLowerCase().contains(
+      final matchSearch = p.nombre.toLowerCase().contains(
         _searchQuery.toLowerCase(),
       );
       return matchStatus && matchSearch;
@@ -588,8 +586,8 @@ class _FilterChip extends StatelessWidget {
 
 // Animacion de aparición para las tarjetas de producto
 class _AnimatedProductCard extends StatefulWidget {
-  final int index;
   final Product product;
+  final int index;
 
   const _AnimatedProductCard({required this.index, required this.product});
 
@@ -720,7 +718,7 @@ class _ProductCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Banner ──────────────────────────────────────────────────
+          // Banner
           ClipRRect(
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(20),
@@ -746,7 +744,7 @@ class _ProductCard extends StatelessWidget {
             ),
           ),
 
-          // ── Body ────────────────────────────────────────────────────
+          // Body
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
             child: Column(
@@ -775,7 +773,7 @@ class _ProductCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            product.name,
+                            product.nombre,
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
@@ -785,7 +783,7 @@ class _ProductCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            product.lot,
+                            product.lote,
                             style: const TextStyle(
                               fontSize: 12,
                               color: labelGray,
@@ -814,7 +812,9 @@ class _ProductCard extends StatelessWidget {
                       child: _MetaTile(
                         icon: Icons.inventory_2_outlined,
                         label: 'Cantidad',
-                        value: '${product.quantity} uds',
+                        value: product.cantidad > 1
+                            ? '${product.cantidad} unidades'
+                            : '${product.cantidad} unidad',
                         valueColor: titleColor,
                       ),
                     ),
@@ -822,7 +822,7 @@ class _ProductCard extends StatelessWidget {
                       child: _MetaTile(
                         icon: Icons.thermostat_rounded,
                         label: 'Temperatura',
-                        value: '${product.temperature}°C',
+                        value: '${product.temperatura}°C',
                         valueColor: isCritical
                             ? const Color(0xFFFF453A)
                             : titleColor,
@@ -840,7 +840,6 @@ class _ProductCard extends StatelessWidget {
   }
 }
 
-// ─── Meta tile ────────────────────────────────────────────────────────────────
 class _MetaTile extends StatelessWidget {
   final IconData icon;
   final String label;

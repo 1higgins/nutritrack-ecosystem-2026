@@ -1,0 +1,58 @@
+# ====================================================================
+# NUTRITRACK ECOSISTEMA - .GITIGNORE PERSONALIZADO
+# ====================================================================
+
+# --------------------------------------------------------------------
+# 1. PYTHON BACKEND & IOT (Evita __pycache__ y Base de Datos)
+# --------------------------------------------------------------------
+# Carpetas de compilación de Python
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+
+# Entornos virtuales locales (por si acaso creas uno)
+.venv/
+venv/
+env/
+ENV/
+
+# Bases de datos locales (Previene bloqueos de Merge y subidas accidentales)
+**/backend/nutritrack.db
+**/backend/nutritrack.db-journal
+**/backend/nutritrack.db-wal
+*.db
+*.sqlite3
+
+# --------------------------------------------------------------------
+# 2. FLUTTER & DART (Aplicación Móvil)
+# --------------------------------------------------------------------
+# Archivos de caché y herramientas de Flutter
+**/mobile/.dart_tool/
+**/mobile/.flutter-plugins
+**/mobile/.flutter-plugins-dependencies
+**/mobile/.packages
+**/mobile/build/
+
+# Archivos generados locales de Android e iOS
+**/mobile/android/.gradle/
+**/mobile/android/local.properties
+**/mobile/android/app/Flutter/flutter_export_environment.sh
+**/mobile/ios/Flutter/Generated.xcconfig
+**/mobile/ios/Flutter/flutter_export_environment.sh
+**/mobile/ios/Pods/
+**/mobile/ios/.symlinks/
+
+# Registro de web
+**/mobile/.web_plugin_registrants.dart
+
+# --------------------------------------------------------------------
+# 3. EDITORES Y SISTEMA OPERATIVO (VS Code, Mac, Windows)
+# --------------------------------------------------------------------
+.vscode/
+.idea/
+**/mobile/.idea/
+*.iml
+
+# Archivos invisibles del sistema Mac / Windows
+.DS_Store
+Thumbs.db
