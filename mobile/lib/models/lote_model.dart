@@ -23,10 +23,8 @@ class Telemetria {
   factory Telemetria.fromJson(Map<String, dynamic> json) {
     return Telemetria(
       id: json['id'] as int? ?? 0,
-      // Manejo robusto de números (int o double de la API)
       temperatura: (json['temperatura'] as num?)?.toDouble() ?? 0.0,
       humedad: (json['humedad'] as num?)?.toDouble() ?? 0.0,
-      // Conversión segura de fecha ISO8601
       fechaRegistro: json['fecha_registro'] != null
           ? DateTime.parse(json['fecha_registro']).toLocal()
           : DateTime.now(),
@@ -46,11 +44,15 @@ class Lote {
   final double tempMaxIdeal;
   final String estadoActual;
   final bool entregado;
+  final DateTime
+      fechaCreacion; // 👈 NUEVO CAMPO: Captura el TIMESTAMP histórico del backend
 
-  // --- NUEVOS CAMPOS PARA VINCULACIÓN ---
-  final int creadorId; // ID del OPA que lo registró
-  final int?
-      custodioId; // ID del OPT que lo vinculó (puede ser null si nadie lo ha tomado)
+  // --- CAMPOS PARA VINCULACIÓN ---
+  final int creadorId;
+  final String? creadorUsername;
+  final int? custodioId;
+  final String? custodioUsername;
+  final double? ultimaTemperatura;
 
   final List<Telemetria> telemetrias;
 
@@ -62,8 +64,12 @@ class Lote {
     required this.tempMaxIdeal,
     required this.estadoActual,
     required this.entregado,
-    required this.creadorId, // Requerido por el nuevo contrato del backend
-    this.custodioId, // Opcional hasta que se vincule
+    required this.fechaCreacion, // Inyectado de manera obligatoria en el constructor
+    required this.creadorId,
+    this.creadorUsername,
+    this.custodioId,
+    this.custodioUsername,
+    this.ultimaTemperatura,
     this.telemetrias = const [],
   });
 
@@ -74,15 +80,22 @@ class Lote {
       producto: json['producto'] as String? ?? "DESCONOCIDO",
       tempMinIdeal: (json['temp_min_ideal'] as num?)?.toDouble() ?? 0.0,
       tempMaxIdeal: (json['temp_max_ideal'] as num?)?.toDouble() ?? 0.0,
-      estadoActual: (json['estado_actual'] as String? ?? "OPTIMO")
+      estadoActual: (json['estado_actual'] as String? ?? "ESPERANDO")
           .toUpperCase()
-          .replaceAll('ADVERTENCIA', 'ALERTA'),
+          .replaceAll('Ó', 'O')
+          .replaceAll('Í', 'I')
+          .replaceAll('ADVERTENCIA', 'ALERTA')
+          .trim(),
       entregado: json['entregado'] as bool? ?? false,
-
-      // MAPEO DE NUEVOS CAMPOS (Basado en schemas.py)
+      // Mapeo seguro para la fecha de creación del lote
+      fechaCreacion: json['fecha_creacion'] != null
+          ? DateTime.parse(json['fecha_creacion']).toLocal()
+          : DateTime.now(),
       creadorId: json['creador_id'] as int? ?? 0,
+      creadorUsername: json['creador_username'] as String?,
       custodioId: json['custodio_id'] as int?,
-
+      custodioUsername: json['custodio_username'] as String?,
+      ultimaTemperatura: (json['ultima_temperatura'] as num?)?.toDouble(),
       telemetrias: json['telemetrias'] != null
           ? List<Telemetria>.from(
               (json['telemetrias'] as List).map((i) => Telemetria.fromJson(i)),
@@ -91,7 +104,6 @@ class Lote {
     );
   }
 
-  /// Patrón CopyWith actualizado para incluir custodioId tras vinculación exitosa
   Lote copyWith({
     String? estadoActual,
     bool? entregado,
@@ -106,41 +118,35 @@ class Lote {
       tempMaxIdeal: tempMaxIdeal,
       estadoActual: estadoActual ?? this.estadoActual,
       entregado: entregado ?? this.entregado,
+      fechaCreacion: fechaCreacion,
       creadorId: creadorId,
       custodioId: custodioId ?? this.custodioId,
+      custodioUsername: custodioUsername,
+      ultimaTemperatura: ultimaTemperatura,
       telemetrias: telemetrias ?? this.telemetrias,
     );
   }
 
-  /// Lógica de Colores Industrial (Diseño de Interfaz de Alta Fidelidad)
   Color get colorEstado {
     switch (estadoActual) {
       case 'OPTIMO':
-        return const Color(0xFF10B981); // Emerald 500
-      case 'ALERTA': // Cambio aplicado: Más corto para la UI
-        return const Color(0xFFF59E0B); // Amber 500
+        return const Color(0xFF10B981);
+      case 'ALERTA':
+        return const Color(0xFFF59E0B);
       case 'CRITICO':
-        return const Color(0xFFEF4444); // Red 500
+        return const Color(0xFFEF4444);
       default:
-        return const Color(0xFF94A3B8); // Slate 400
+        return const Color(0xFF94A3B8);
     }
   }
 
-  /// Cálculo de promedio movible para analítica rápida
   double get promedioTemperatura {
     if (telemetrias.isEmpty) return 0.0;
     final total = telemetrias.map((t) => t.temperatura).reduce((a, b) => a + b);
     return total / telemetrias.length;
   }
 
-  /// Indica si el lote requiere atención inmediata
-  // ... (tus getters anteriores)
-
-  /// Indica si el lote requiere atención inmediata
   bool get tieneAlertas =>
       estadoActual == 'CRITICO' || estadoActual == 'ALERTA';
-
-  /// NUEVO: Indica si el lote ya tiene un transportista asignado
-  /// Útil para que la UI sepa si mostrar el botón de vincular o no.
   bool get estaVinculado => custodioId != null;
 }

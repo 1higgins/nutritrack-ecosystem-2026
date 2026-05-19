@@ -1,63 +1,57 @@
 """
-NutriTrack - Enterprise Logic Service: Alerts
-Motor de decisiones con tolerancia a fallos y auditoría diagnóstica.
+NutriTrack - Enterprise Logic Service: Alerts (v2.0 - State Memory)
 """
 
-# alerts.py
-
 STATUS_OPTIMO = "OPTIMO"
-STATUS_ALERTA = "ADVERTENCIA"
+STATUS_ALERTA = "ALERTA"
 STATUS_CRITICO = "CRITICO"
+STATUS_ESPERANDO = "ESPERANDO" # <-- Añadimos el nuevo estado
 
-MARGEN_CRITICO_TEMP = 5.0  
+MARGEN_CRITICO_TEMP = 3.0  
 HUMEDAD_MIN_ACEPTABLE = 20.0 
 HUMEDAD_MAX_ACEPTABLE = 80.0
 
-def evaluar_estado_lote(temp: float, hum: float, t_min: float, t_max: float) -> str:
+def evaluar_estado_lote(temp: float, hum: float, t_min: float, t_max: float, estado_anterior: str) -> str:
     """
-    DETERMINISMO TÉRMICO: El estado visual de la App se rige SOLO por la temperatura.
-    Esto garantiza que si el punto está en la zona verde, el estado sea OPTIMO.
+    LÓGICA DE ESTADOS CON ESTADO INICIAL NEUTRO:
+    Si el estado es ESPERANDO, la primera temperatura define el estado real sin restricciones.
     """
-    if temp is None: return STATUS_ALERTA
+    # 0. Manejo de seguridad para nulos
+    if temp is None: 
+        return estado_anterior if estado_anterior else STATUS_ESPERANDO
 
-    # 1. ESTADO CRÍTICO (Rojo en App)
-    if temp > (t_max + MARGEN_CRITICO_TEMP) or temp < (t_min - MARGEN_CRITICO_TEMP):
-        return STATUS_CRITICO
+    # 1. ¿Está en Zona Óptima? (Verde)
+    if t_min <= temp <= t_max:
+        return STATUS_OPTIMO
 
-    # 2. ESTADO ADVERTENCIA (Naranja en App)
-    if temp > t_max or temp < t_min:
-        return STATUS_ALERTA
+    # 2. Rango de Alerta (Margen de 3 grados)
+    esta_en_margen_alerta = (temp < t_min and temp >= (t_min - MARGEN_CRITICO_TEMP)) or \
+                            (temp > t_max and temp <= (t_max + MARGEN_CRITICO_TEMP))
 
-    # 3. ESTADO ÓPTIMO (Verde en App)
-    return STATUS_OPTIMO
+    if esta_en_margen_alerta:
+        # LÓGICA DE TRANSICIÓN:
+        # Permitimos ALERTA si venía de OPTIMO o si es el PRIMER dato (ESPERANDO)
+        if estado_anterior == STATUS_OPTIMO or estado_anterior == STATUS_ESPERANDO:
+            return STATUS_ALERTA
+        else:
+            # Si venía de CRITICO, se queda en CRITICO (Recuperación en curso)
+            return STATUS_CRITICO
+
+    # 3. Fuera de todo margen (Rojo)
+    return STATUS_CRITICO
 
 def generar_diagnostico(temp: float, hum: float, t_min: float, t_max: float) -> str:
-    """
-    DIAGNÓSTICO MULTI-VARIABLE: Informa sobre todo, pero con coherencia.
-    Si la temperatura es óptima pero la humedad no, lo dice sin cambiar el color del sistema.
-    """
     avisos = []
-
-    # Prioridad 1: Temperaturas Críticas
     if temp > (t_max + MARGEN_CRITICO_TEMP):
-        avisos.append(f"CRÍTICO: Sobrecalentamiento extremo (+{round(temp - t_max, 2)}°C)")
+        avisos.append(f"CRÍTICO: Sobrecalentamiento extremo")
     elif temp < (t_min - MARGEN_CRITICO_TEMP):
-        avisos.append(f"CRÍTICO: Congelación no programada (-{round(t_min - temp, 2)}°C)")
-    
-    # Prioridad 2: Advertencias Térmicas
+        avisos.append(f"CRÍTICO: Congelación severa")
     elif temp > t_max:
-        avisos.append("Advertencia: Temperatura ligeramente alta")
+        avisos.append("Alerta: Temperatura por encima del límite")
     elif temp < t_min:
-        avisos.append("Advertencia: Temperatura bajo el nivel ideal")
+        avisos.append("Alerta: Temperatura por debajo del límite")
     
-    # Prioridad 3: Humedad (Se añade como información adicional)
-    if hum > HUMEDAD_MAX_ACEPTABLE:
-        avisos.append("Aviso: Humedad Elevada")
-    elif hum < HUMEDAD_MIN_ACEPTABLE:
-        avisos.append("Aviso: Ambiente Seco")
+    if hum > HUMEDAD_MAX_ACEPTABLE: avisos.append("Humedad Alta")
+    elif hum < HUMEDAD_MIN_ACEPTABLE: avisos.append("Humedad Baja")
 
-    # Salida Profesional
-    if not avisos:
-        return "Sistema operando en parámetros ideales."
-    
-    return " | ".join(avisos)
+    return " | ".join(avisos) if avisos else "Sistema operando en parámetros ideales"

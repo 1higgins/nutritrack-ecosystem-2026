@@ -2,14 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart'; // 📍 IMPORTANTE: Añadir esta dependencia
 
 class NutriTrackException implements Exception {
   final String message;
   NutriTrackException(this.message);
 
   @override
-  String toString() =>
-      message; // Esto hace que print(e) muestre el mensaje real
+  String toString() => message;
 }
 
 class AuthResult {
@@ -21,7 +21,11 @@ class AuthResult {
 class AuthService {
   final String baseUrl = "http://127.0.0.1:8000";
 
-  /// Lógica profesional: Devuelve AuthResult manteniendo toda la trazabilidad original.
+  // Constantes internas para evitar errores de tipeo al guardar/borrar
+  static const String _keyToken = "access_token";
+  static const String _keyRole = "user_role";
+
+  /// Lógica profesional: Devuelve AuthResult y PERSISTE los datos en el dispositivo.
   Future<AuthResult?> login(String username, String password) async {
     try {
       final response = await http.post(
@@ -38,11 +42,16 @@ class AuthService {
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
 
-        // Extraemos ambos campos del nuevo esquema del Backend
         final String token = data['access_token'];
         final String role = data['role'] ?? 'user';
 
-        debugPrint("🔐 Autenticación Exitosa para: $username [Rol: $role]");
+        // 📍 INYECCIÓN DE PERSISTENCIA: Guardamos el token y el rol de forma física
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_keyToken, token);
+        await prefs.setString(_keyRole, role);
+
+        debugPrint(
+            "🔐 Autenticación Exitosa y Persistida para: $username [Rol: $role]");
         return AuthResult(token: token, role: role);
       } else if (response.statusCode == 401) {
         final Map<String, dynamic> errorData = json.decode(response.body);
@@ -74,5 +83,24 @@ class AuthService {
       debugPrint("🚨 Fallo Técnico Inesperado: $e");
       throw NutriTrackException("Error inesperado en la autenticación");
     }
+  }
+
+  // ==========================================================================
+  // 📍 NUEVO MÉTODO: LOGOUT (El encargado de limpiar la sesión al presionar [->)
+  // ==========================================================================
+  /// Elimina por completo los datos de sesión almacenados en el dispositivo.
+  Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyToken);
+    await prefs.remove(_keyRole);
+    debugPrint("🚪 Sesión destruida localmente en el dispositivo.");
+  }
+
+  // ==========================================================================
+  // 📍 NUEVO MÉTODO: VERIFICAR TOKEN (Útil para saber si hay una sesión activa)
+  // ==========================================================================
+  Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyToken);
   }
 }

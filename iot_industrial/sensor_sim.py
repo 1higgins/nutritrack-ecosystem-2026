@@ -44,26 +44,33 @@ class NutriTrackIndustrialSensor:
 
     def inicializar_lote(self):
         """
-        MODO PROFESIONAL: Solo busca lotes existentes donde el usuario tiene 
-        permisos (Creados por OPA o Vinculados por OPT). 
-        Se elimina la creación automática para respetar la jerarquía de roles.
+        MODO PROFESIONAL: Busca lotes existentes tolerando formatos de lista pura 
+        o payloads envueltos con metadatos analíticos.
         """
         while True:
             try:
-                # 1. INTENTO DE VINCULACIÓN (Solo lectura de lo autorizado)
                 print(f"🔍 [LOTE] Buscando acceso autorizado para '{self.codigo_lote}'...")
                 res_get = requests.get(f"{API_BASE_URL}/lotes/", headers=self.headers)
                 
                 if res_get.status_code == 200:
-                    lotes_en_sistema = res_get.json()
-                    # Buscamos nuestro código en la lista que nos dio la API (filtrada por el backend)
+                    payload = res_get.json()
+                    
+                    # DESEMPAQUETADO INTELIGENTE: Soportar mapas analíticos o listas puras
+                    if isinstance(payload, dict) and "lotes" in payload:
+                        lotes_en_sistema = payload["lotes"]
+                    elif isinstance(payload, list):
+                        lotes_en_sistema = payload
+                    else:
+                        print("❌ [ERROR] Formato de respuesta del backend desconocido.")
+                        return False
+
+                    # Buscamos nuestro código en la lista normalizada
                     for lote in lotes_en_sistema:
                         if lote["codigo_lote"] == self.codigo_lote:
                             self.lote_id = lote["id"]
                             print(f"🔗 [VINCULACIÓN] Acceso confirmado. ID Sistema: {self.lote_id}")
                             return True
                     
-                    # Si el bucle termina sin encontrar el lote:
                     print(f"\n❌ [ERROR] Lote '{self.codigo_lote}' no disponible para este usuario.")
                     print("─" * 60)
                     print("📌 OPA: Asegúrese de haber creado el lote primero.")

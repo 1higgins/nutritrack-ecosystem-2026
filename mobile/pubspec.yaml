@@ -20,6 +20,10 @@ dependencies:
   
   # Versión compatible con intl 0.19.0 y Flutter moderno
   syncfusion_flutter_charts: ^33.2.4
+  animations: ^2.2.0
+
+  # 📍 SISTEMA DE PERSISTENCIA INDUSTRIAL: Guarda sesión por 240 minutos
+  shared_preferences: ^2.3.5
 
 dev_dependencies:
   flutter_test:
@@ -30,3 +34,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/LOGO_NUTRITRACK.JPG
+    - assets/icons/Inventario.png
+    - assets/icons/Estadisticas.png
+    - assets/icons/ajustamiento.png
+    - assets/icons/notificaciones.png

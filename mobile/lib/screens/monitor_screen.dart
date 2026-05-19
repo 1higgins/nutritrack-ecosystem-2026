@@ -1,15 +1,22 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/lote_model.dart';
 import '../services/lote_service.dart';
 import 'lote_detail_screen.dart';
+import '../services/auth_service.dart';
+import 'login_screen.dart';
 
 class MonitorScreen extends StatefulWidget {
   final String token;
   final String role;
+  final String userName;
 
-  const MonitorScreen({super.key, required this.token, required this.role});
+  const MonitorScreen({
+    super.key,
+    required this.token,
+    required this.role,
+    required this.userName,
+  });
 
   @override
   State<MonitorScreen> createState() => _MonitorScreenState();
@@ -19,6 +26,9 @@ class _MonitorScreenState extends State<MonitorScreen>
     with TickerProviderStateMixin {
   final LoteService _loteService = LoteService();
   late Future<List<Lote>> _futureLotes;
+  String _selectedCategory = "Todos";
+
+  final _searchController = TextEditingController();
 
   // --- CONTROLADORES INDUSTRIALES ---
   final _codigoController = TextEditingController();
@@ -27,6 +37,12 @@ class _MonitorScreenState extends State<MonitorScreen>
   final _tempMaxController = TextEditingController();
   final _passwordLoteController = TextEditingController();
   final _nombreOpaController = TextEditingController();
+
+  // --- NUEVAS VARIABLES DE ESTADO DE AUDITORÍA ---
+  String _filterRangoFecha =
+      "24h"; // Inicia por defecto en 24h para evitar saturación
+  String _filterUsername = ""; // Almacena el OPA exacto buscado por el Admin
+  bool _mostrarBotonQR = false;
 
   // Estado de carga para botones
   bool _isLoadingAction = false;
@@ -38,9 +54,15 @@ class _MonitorScreenState extends State<MonitorScreen>
     _loadData();
   }
 
+  /// Carga de datos optimizada con persistencia de filtros para el Pull-to-Refresh
   void _loadData() {
     setState(() {
-      _futureLotes = _loteService.fetchLotes(widget.token);
+      _futureLotes = _loteService.fetchLotes(
+        widget.token,
+        username:
+            _filterUsername.trim().isEmpty ? null : _filterUsername.trim(),
+        rangoFecha: _filterRangoFecha,
+      );
     });
   }
 
@@ -52,47 +74,38 @@ class _MonitorScreenState extends State<MonitorScreen>
     _tempMaxController.dispose();
     _passwordLoteController.dispose();
     _nombreOpaController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
   // --- MÉTODOS DE LÓGICA ---
 
   String? _validarFormularioLote() {
-    // 1. VALIDACIÓN TRANSVERSAL (Obligatorio para todos: Crear, Vincular, Entregar)
     if (_codigoController.text.trim().isEmpty) {
       return "El Código/Nombre del lote es obligatorio";
     }
-
     if (_passwordLoteController.text.trim().length < 4) {
       return "La contraseña de seguridad debe tener al menos 4 caracteres";
     }
 
-    // 2. VALIDACIÓN POR FLUJO ESPECÍFICO
     switch (_currentFormType) {
       case "crear":
-        // Para crear, el producto ES obligatorio
         if (_productoController.text.trim().isEmpty) {
           return "Debe especificar el producto para el registro";
         }
         return _validarRangosTermicos();
-
       case "vincular":
-        // Vincular solo necesita Código y Password (ya validados arriba)
         return null;
-
       case "entregar":
-        // Entregar necesita el nombre del OPA (el emisor)
         if (_nombreOpaController.text.trim().isEmpty) {
           return "El nombre del OPA emisor es obligatorio para la entrega";
         }
         return null;
-
       default:
         return "Error de contexto: Acción no identificada";
     }
   }
 
-  /// Validación modular de integridad térmica
   String? _validarRangosTermicos() {
     final double? min =
         double.tryParse(_tempMinController.text.replaceAll(',', '.'));
@@ -114,7 +127,6 @@ class _MonitorScreenState extends State<MonitorScreen>
     if (_passwordLoteController.text.length < 4) {
       return "Password debe tener min. 4 caracteres";
     }
-
     return null;
   }
 
@@ -127,93 +139,366 @@ class _MonitorScreenState extends State<MonitorScreen>
     _nombreOpaController.clear();
   }
 
-  // --- INTERFAZ DE USUARIO PRINCIPAL ---
+  // ==========================================================================
+  // LÓGICA DE FILTRADO COMBINADO LOCAL (Buscador + Chips)
+  // Operando sobre el universo ya pre-filtrado por el Servidor
+  // ==========================================================================
+  List<Lote> _getFilteredLotes(List<Lote> allLotes) {
+    return allLotes.where((lote) {
+      final query = _searchController.text.toLowerCase();
+      final matchesSearch = lote.codigoLote.toLowerCase().contains(query) ||
+          lote.producto.toLowerCase().contains(query);
+
+      if (!matchesSearch) return false;
+
+      switch (_selectedCategory) {
+        case "Entregados":
+          return lote.entregado == true;
+        case "Buenos":
+          return !lote.entregado &&
+              lote.estadoActual.toUpperCase().contains('OPTIMO');
+        case "Alerta":
+          return !lote.entregado &&
+              lote.estadoActual.toUpperCase().contains('ALERTA');
+        case "Critico":
+          return !lote.entregado &&
+              lote.estadoActual.toUpperCase().contains('CRITICO');
+        case "Todos":
+        default:
+          return true;
+      }
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
-      // Ajustamos la posición para que no quede "pegado" abajo
+      backgroundColor: const Color.fromARGB(255, 249, 249, 249),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 75, right: 8),
-        child: GestureDetector(
-          onTap: () {
-            if (widget.role == "OPA") {
-              _showFormModal(tipo: "crear");
-            } else {
-              _showActionMenu();
-            }
-          },
-          child: Container(
-            height: 65,
-            width: 65,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF2374A6), Color(0xFF0F172A)],
+
+      // 🟢 MODIFICACIÓN AQUÍ: Si es true se dibuja, si es false se oculta (null)
+      floatingActionButton: !_mostrarBotonQR
+          ? null
+          : Padding(
+              padding: const EdgeInsets.only(bottom: 88, right: 2),
+              child: GestureDetector(
+                onTap: () {
+                  if (widget.role == "OPA") {
+                    _showFormModal(tipo: "crear");
+                  } else {
+                    _showActionMenu();
+                  }
+                },
+                child: Container(
+                  height: 85,
+                  width: 85,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF2374A6), Color(0xFF0F172A)],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF2374A6).withValues(alpha: 0.4),
+                        blurRadius: 30,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+                  ),
+                  child: const Icon(
+                    Icons.qr_code_scanner_rounded,
+                    color: Colors.white,
+                    size: 38,
+                  ),
+                ),
               ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF2374A6).withValues(alpha: 0.4),
-                  blurRadius: 15,
-                  offset: const Offset(0, 8),
+            ),
+      body: FutureBuilder<List<Lote>>(
+        future: _futureLotes,
+        builder: (context, snapshot) {
+          final List<Lote>? lotesActuales = snapshot.data;
+
+          return Column(
+            children: [
+              _buildModernAppBar(),
+              _buildSystemStatsHeader(lotesActuales),
+
+              // Pasamos el snapshot para validar la existencia de lotes mínimos antes de mostrar el botón
+              _buildSearchAndFilterSection(lotesActuales),
+
+              const SizedBox(height: 10),
+              Expanded(
+                child: RefreshIndicator(
+                  color: const Color(0xFF3B82F6),
+                  onRefresh: () async => _loadData(),
+                  child: CustomScrollView(
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
+                    ),
+                    slivers: [
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 4),
+                        sliver: _buildSliverContent(snapshot),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildModernAppBar() {
+    String displayRole;
+    switch (widget.role.toLowerCase()) {
+      case 'admin':
+        displayRole = "Administrador";
+        break;
+      case 'opa':
+        displayRole = "Operario";
+        break;
+      case 'opt':
+        displayRole = "Transportista";
+        break;
+      default:
+        displayRole = widget.role;
+    }
+
+    final String currentUserName = widget.userName;
+
+    return Container(
+      color: Colors.white,
+      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            height: 70,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 10.0),
+                  child: Row(
+                    children: [
+                      Container(
+                        height: 40,
+                        width: 40,
+                        decoration: const BoxDecoration(
+                            color: Color(0xFF0059FF), shape: BoxShape.circle),
+                        child: const Icon(Icons.person_outline_rounded,
+                            color: Colors.white, size: 21),
+                      ),
+                      const SizedBox(width: 11),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            currentUserName,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF0F172A)),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            displayRole,
+                            style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF94A3B8)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                Padding(
+                  padding: const EdgeInsets.only(right: 5.0),
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.logout_rounded,
+                      color: Color.fromARGB(255, 117, 125, 137),
+                      size: 23,
+                    ),
+                    // 📍 LLAMADA PREMIUM: Invoca el modal de confirmación con el contexto de la pantalla
+                    onPressed: () => _showLogoutBottomSheet(context),
+                  ),
                 ),
               ],
-              border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.1), width: 1.5),
-            ),
-            child: Icon(
-              widget.role == "OPT"
-                  ? Icons.qr_code_scanner_rounded
-                  : Icons.add_rounded,
-              color: Colors.white,
-              size: 30,
             ),
           ),
-        ),
+          Container(color: const Color(0xFFE2E8F0), height: 1),
+        ],
       ),
-      body: RefreshIndicator(
-        color: const Color(0xFF3B82F6),
-        onRefresh: () async => _loadData(),
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            _buildModernAppBar(),
-            SliverToBoxAdapter(child: _buildSystemStatsHeader()),
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              sliver: FutureBuilder<List<Lote>>(
-                future: _futureLotes,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const SliverFillRemaining(
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 3,
-                          color: Color(0xFF3B82F6),
-                        ),
-                      ),
-                    );
-                  } else if (snapshot.hasError) {
-                    return SliverFillRemaining(
-                      child: _buildErrorState(snapshot.error.toString()),
-                    );
-                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return SliverFillRemaining(child: _buildEmptyState());
-                  }
+    );
+  }
 
-                  return SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) =>
-                          _buildIndustrialLoteCard(snapshot.data![index]),
-                      childCount: snapshot.data!.length,
-                    ),
-                  );
-                },
+  Widget _buildSystemStatsHeader(List<Lote>? lotes) {
+    if (lotes == null) {
+      return _buildHeaderLayout(
+          total: "...", buenos: "...", alerta: "...", critico: "...");
+    }
+
+    final List<Lote> lotesActivos = lotes.where((l) => !l.entregado).toList();
+
+    int buenos = 0;
+    int alerta = 0;
+    int critico = 0;
+
+    for (var lote in lotesActivos) {
+      final String estado = lote.estadoActual.toUpperCase();
+      if (estado.contains('OPTIMO')) {
+        buenos++;
+      } else if (estado.contains('ALERTA')) {
+        alerta++;
+      } else if (estado.contains('CRITICO')) {
+        critico++;
+      }
+    }
+
+    return _buildHeaderLayout(
+      total: lotesActivos.length.toString(),
+      buenos: buenos.toString(),
+      alerta: alerta.toString(),
+      critico: critico.toString(),
+    );
+  }
+
+  Widget _buildHeaderLayout({
+    required String total,
+    required String buenos,
+    required String alerta,
+    required String critico,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(22, 20, 22, 14.5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Inventario de Lotes",
+              style: GoogleFonts.inter(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF1E293B))),
+          const SizedBox(height: 5.5),
+          Text("Gestión de productos refrigerados",
+              style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF64748B))),
+          const SizedBox(height: 19),
+          Row(
+            children: [
+              _buildStatCard(total, "Total", const Color(0xFF64748B),
+                  const Color(0xFFF8FAFC)),
+              const SizedBox(width: 8),
+              _buildStatCard(
+                  buenos,
+                  "Buenos",
+                  const Color.fromARGB(255, 7, 206, 47),
+                  const Color(0xFFECFDF5)),
+              const SizedBox(width: 8),
+              _buildStatCard(
+                  alerta,
+                  "Alerta",
+                  const Color.fromARGB(255, 231, 151, 13),
+                  const Color(0xFFFFFBEB)),
+              const SizedBox(width: 8),
+              _buildStatCard(
+                  critico,
+                  "Crítico",
+                  const Color.fromARGB(255, 236, 6, 6),
+                  const Color(0xFFFEF2F2)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSliverContent(AsyncSnapshot<List<Lote>> snapshot) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const SliverFillRemaining(
+        child: Center(
+            child: CircularProgressIndicator(
+                strokeWidth: 3, color: Color(0xFF3B82F6))),
+      );
+    }
+    if (snapshot.hasError) {
+      return SliverFillRemaining(
+          child: _buildErrorState(snapshot.error.toString()));
+    }
+    if (!snapshot.hasData || snapshot.data!.isEmpty) {
+      return SliverFillRemaining(child: _buildEmptyState());
+    }
+
+    final filteredList = _getFilteredLotes(snapshot.data!);
+
+    if (filteredList.isEmpty) {
+      return SliverFillRemaining(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.search_off_rounded,
+                  size: 50, color: Color(0xFF94A3B8)),
+              const SizedBox(height: 16),
+              Text(
+                "No se encontraron resultados",
+                style: GoogleFonts.inter(
+                    color: const Color(0xFF64748B),
+                    fontWeight: FontWeight.w500),
               ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) => _buildIndustrialLoteCard(filteredList[index]),
+        childCount: filteredList.length,
+      ),
+    );
+  }
+
+  Widget _buildStatCard(
+      String value, String label, Color color, Color bgColor) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              value,
+              style: GoogleFonts.inter(
+                  fontSize: 18, fontWeight: FontWeight.w900, color: color),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                  fontSize: 11, fontWeight: FontWeight.w600, color: color),
             ),
           ],
         ),
@@ -221,104 +506,43 @@ class _MonitorScreenState extends State<MonitorScreen>
     );
   }
 
-  // --- WIDGETS COMPONENTES ---
-
-  Widget _buildModernAppBar() {
-    return SliverAppBar(
-      floating: true,
-      pinned: true,
-      backgroundColor: const Color(0xFFF1F5F9),
-      elevation: 0,
-      centerTitle: false,
-      title: Text(
-        'COMMAND CENTER',
-        style: GoogleFonts.orbitron(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 2,
-          color: const Color(0xFF0F172A),
-        ),
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.analytics_outlined, color: Color(0xFF3B82F6)),
-          onPressed: () {},
-        ),
-        const SizedBox(width: 10),
-      ],
-    );
-  }
-
-  Widget _buildSystemStatsHeader() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildQuickStat("ACTIVOS", "12", const Color(0xFF3B82F6)),
-          _buildDivider(),
-          _buildQuickStat("ALERTAS", "02", const Color(0xFFEF4444)),
-          _buildDivider(),
-          _buildQuickStat("NODOS", "ONLINE", const Color(0xFF10B981)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDivider() => Container(
-      height: 30, width: 1, color: Colors.grey.withValues(alpha: 0.2));
-
-  Widget _buildQuickStat(String label, String value, Color color) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            color: const Color(0xFF64748B),
-            fontSize: 9,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          value,
-          style: GoogleFonts.robotoMono(
-              color: color, fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-      ],
-    );
-  }
-
   Widget _buildIndustrialLoteCard(Lote lote) {
+    // Normalizamos el estado actual para la evaluación condicional de bordes
+    final String estadoStr = lote.estadoActual.toUpperCase();
+
+    // Configuración dinámica del color del borde perimetral
+    Color borderColor;
+    if (estadoStr.contains('ESPERANDO')) {
+      borderColor = const Color(0xFF0059FF); // Borde azul industrial en espera
+    } else {
+      borderColor = lote.colorEstado; // Borde dinámico según el riesgo
+    }
+
+    final String transportistaAsignado =
+        (lote.custodioUsername != null && lote.custodioUsername!.isNotEmpty)
+            ? lote.custodioUsername!
+            : "...";
+
+    final String ultimaTemp = (lote.ultimaTemperatura != null)
+        ? "${lote.ultimaTemperatura!.toStringAsFixed(1)}°C"
+        : "N/A";
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 15,
+              offset: const Offset(0, 8)),
         ],
-        border: Border.all(color: lote.colorEstado.withValues(alpha: 0.1)),
+        border:
+            Border.all(color: borderColor.withValues(alpha: 0.25), width: 1.5),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         child: InkWell(
           onTap: () => Navigator.push(
             context,
@@ -328,46 +552,496 @@ class _MonitorScreenState extends State<MonitorScreen>
           ),
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildStatusIndicator(lote),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                // ==================================================================
+                // 📦 SECCIÓN ENCABEZADO: Icono de estado + Código + Producto + Badge
+                // ==================================================================
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    _buildStatusIndicator(lote),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Text(
-                              lote.codigoLote,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.robotoMono(
-                                color: const Color(0xFF1E293B),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  lote.codigoLote,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFF0F172A),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16.5,
+                                  ),
+                                ),
                               ),
+                              const SizedBox(width: 8),
+                              _buildMiniBadge(lote),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            lote.producto.toUpperCase(),
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF64748B),
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          _buildMiniBadge(lote),
                         ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        lote.producto.toUpperCase(),
-                        overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+
+                // ==================================================================
+                // 🛠️ LÍNEA DIVISORIA INDUSTRIAL (CON OPACIDAD ALPHA PREMIUM)
+                // ==================================================================
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Divider(
+                    color: const Color(0xFFE2E8F0).withValues(alpha: 0.6),
+                    height: 1,
+                    thickness: 1,
+                  ),
+                ),
+
+                // ==================================================================
+                // 📊 SECCIÓN MEDIAL: Datos técnicos (Ocupando todo el ancho)
+                // ==================================================================
+                const SizedBox(height: 7),
+
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Columna 1: Límites de Temperatura
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildDataRow(
+                            icon: Icons.arrow_downward_rounded,
+                            iconColor: const Color(0xFF3B82F6),
+                            label: "Limite (Mín):",
+                            value: "${lote.tempMinIdeal.toStringAsFixed(1)}°C",
+                          ),
+                          const SizedBox(height: 7),
+                          _buildDataRow(
+                            icon: Icons.arrow_upward_rounded,
+                            iconColor: const Color(0xFFEF4444),
+                            label: "Limite (Máx):",
+                            value: "${lote.tempMaxIdeal.toStringAsFixed(1)}°C",
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Columna 2: Temp Actual y Conductor
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildDataRow(
+                            icon: Icons.thermostat_rounded,
+                            iconColor: const Color(0xFFF59E0B),
+                            label: "Temp:",
+                            value: ultimaTemp,
+                            highlight: true,
+                          ),
+                          const SizedBox(height: 7),
+                          _buildDataRow(
+                            icon: Icons.local_shipping_rounded,
+                            iconColor: const Color.fromARGB(255, 82, 96, 114),
+                            label: "Conductor:",
+                            value: transportistaAsignado,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Espaciado armónico antes de la barra de progreso
+                const SizedBox(height: 16),
+
+                // ==================================================================
+                // 📉 SECCIÓN INFERIOR: Barra de progreso extendida de extremo a extremo
+                // ==================================================================
+                _buildLinearProgress(lote),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDataRow({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+    bool highlight = false,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 15, color: iconColor.withValues(alpha: 0.8)),
+        const SizedBox(width: 4.5),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+              fontSize: 11.7,
+              fontWeight: FontWeight.w500,
+              color: const Color.fromARGB(255, 84, 93, 106)),
+        ),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Text(
+            value,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF0F172A)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==========================================================================
+  // 🔍 SECCIÓN DE BUSCADOR CON BOTÓN DE FILTROS INTEGRADO (SIMETRÍA INDUSTRIAL)
+  // ==========================================================================
+  // ==========================================================================
+  // 🔍 SECCIÓN DE BUSCADOR CON BOTÓN DE FILTROS INTEGRADO (SIEMPRE VISIBLE)
+  // ==========================================================================
+  Widget _buildSearchAndFilterSection(List<Lote>? lotes) {
+    return Container(
+      padding: const EdgeInsets.only(left: 20, right: 20, top: 5, bottom: 0),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              // El Buscador se expande para tomar el espacio disponible
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(13),
+                    border:
+                        Border.all(color: const Color(0xFFE2E8F0), width: 1),
+                  ),
+                  child: Focus(
+                    onFocusChange: (hasFocus) => setState(() {}),
+                    child: Builder(
+                      builder: (context) {
+                        final bool isFocused = Focus.of(context).hasFocus;
+                        return TextField(
+                          controller: _searchController,
+                          onChanged: (value) => setState(() {}),
+                          decoration: InputDecoration(
+                            hintText: isFocused
+                                ? ""
+                                : "Buscar por codigo o producto...",
+                            hintStyle: GoogleFonts.inter(
+                                color: const Color(0xFF94A3B8), fontSize: 14.5),
+                            prefixIconConstraints:
+                                const BoxConstraints(minWidth: 40),
+                            prefixIcon: const Padding(
+                              padding: EdgeInsets.only(left: 8.0),
+                              child: Icon(Icons.search_rounded,
+                                  color: Color(0xFF64748B), size: 20),
+                            ),
+                            border: InputBorder.none,
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+
+              // 🟢 EL BOTÓN AHORA QUEDA LIBERADO DE CONDICIONES (SIEMPRE SE RENDERIZA)
+              const SizedBox(width: 8),
+              Container(
+                height: 48,
+                width: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(
+                    color: (_filterUsername.isNotEmpty ||
+                            _filterRangoFecha != "24h")
+                        ? const Color(0xFF0059FF).withValues(
+                            alpha:
+                                0.25) // Se ilumina en azul si hay filtros activos
+                        : const Color(0xFFE2E8F0),
+                    width: (_filterUsername.isNotEmpty ||
+                            _filterRangoFecha != "24h")
+                        ? 1.5
+                        : 1,
+                  ),
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    Icons.filter_list_rounded,
+                    color: (_filterUsername.isNotEmpty ||
+                            _filterRangoFecha != "24h")
+                        ? const Color(0xFF0059FF)
+                        : const Color(0xFF64748B),
+                    size: 22,
+                  ),
+                  onPressed: () =>
+                      _openAdvancedFilterModal(lotes), // Siempre se puede abrir
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6.5),
+
+          // --- CATEGORÍAS (CHIPS) ---
+          Row(
+            children: [
+              _buildFilterChip(
+                  id: "Entregados",
+                  child:
+                      const Icon(Icons.check_circle_outline_rounded, size: 18),
+                  isIcon: true),
+              const SizedBox(width: 7),
+              Expanded(child: _buildFilterChip(id: "Buenos", label: "Buenos")),
+              const SizedBox(width: 7),
+              Expanded(child: _buildFilterChip(id: "Alerta", label: "Alerta")),
+              const SizedBox(width: 7),
+              Expanded(
+                  child: _buildFilterChip(id: "Critico", label: "Crítico")),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openAdvancedFilterModal(List<Lote>? lotes) {
+    // 1. Validamos el rol de forma segura (ignorando mayúsculas/minúsculas)
+    final String rolUsuario = widget.role.toLowerCase();
+    final bool esAdmin = rolUsuario == "admin";
+
+    String tempRangoFecha = _filterRangoFecha;
+
+    // Si no es admin, el filtro de username se limpia automáticamente por seguridad
+    final TextEditingController tempUserController =
+        TextEditingController(text: esAdmin ? _filterUsername : "");
+
+    final List<Map<String, String>> opcionesTiempo = [
+      {"id": "all", "label": "Todo el Historial"},
+      {"id": "24h", "label": "Últimas 24 Horas"},
+      {"id": "semana", "label": "Esta Semana"},
+      {"id": "mes", "label": "Este Mes"},
+      {"id": "3meses", "label": "Últimos 3 Meses"},
+      {"id": "6meses", "label": "Últimos 6 Meses"},
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+            ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "FILTROS DE AUDITORÍA",
+                      style: GoogleFonts.orbitron(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: const Color(0xFF0F172A),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () {
+                        setModalState(() {
+                          tempRangoFecha = "24h";
+                          tempUserController.clear();
+                        });
+                      },
+                      icon: const Icon(Icons.restart_alt_rounded,
+                          size: 16, color: Color(0xFF3B82F6)),
+                      label: Text(
+                        "Limpiar",
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF64748B),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF3B82F6)),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+
+                // ==========================================================================
+                // CONDICIONAL DE ROL: SECCIÓN A (Solo se dibuja si el usuario es Administrador)
+                // ==========================================================================
+                if (esAdmin) ...[
+                  Text(
+                    "FILTRAR POR OPERARIO DE ALMACÉN (OPA)",
+                    style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF64748B),
+                        letterSpacing: 0.5),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildModernField(
+                    controller: tempUserController,
+                    label: "Escribe el username exacto del OPA",
+                    icon: Icons.person_search_rounded,
+                  ),
+                  const SizedBox(height: 20),
+                ],
+
+                // SECCIÓN B: Rango de fecha (Disponible para TODOS los roles: Admin, OPA, OPT)
+                Text(
+                  "RANGO DE TIEMPO (FECHA DE CREACIÓN)",
+                  style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF64748B),
+                      letterSpacing: 0.5),
+                ),
+                const SizedBox(height: 10),
+
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: opcionesTiempo.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 3.4,
+                  ),
+                  itemBuilder: (context, index) {
+                    final opcion = opcionesTiempo[index];
+                    final bool seleccionado = tempRangoFecha == opcion["id"];
+
+                    return GestureDetector(
+                      onTap: () {
+                        setModalState(() => tempRangoFecha = opcion["id"]!);
+                      },
+                      child: Container(
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: seleccionado
+                              ? const Color(0xFF0059FF)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: seleccionado
+                                ? const Color(0xFF0059FF)
+                                : const Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        child: Text(
+                          opcion["label"]!,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: seleccionado
+                                ? Colors.white
+                                : const Color(0xFF64748B),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      _buildLinearProgress(lote),
-                    ],
-                  ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 28),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          side: const BorderSide(color: Color(0xFFE2E8F0)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                        child: Text(
+                          "CANCELAR",
+                          style: GoogleFonts.inter(
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF64748B),
+                              fontSize: 13),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0F172A),
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _filterRangoFecha = tempRangoFecha;
+                            // Si no es admin, nos aseguramos de mandar siempre vacío el filtro de OPA
+                            _filterUsername =
+                                esAdmin ? tempUserController.text.trim() : "";
+                          });
+                          Navigator.pop(context);
+                          _loadData(); // Dispara la actualización al servidor
+                        },
+                        child: Text(
+                          "APLICAR FILTROS",
+                          style: GoogleFonts.inter(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontSize: 13),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -377,28 +1051,125 @@ class _MonitorScreenState extends State<MonitorScreen>
     );
   }
 
+  Widget _buildFilterChip({
+    required String id,
+    String? label,
+    Widget? child,
+    bool isIcon = false,
+  }) {
+    bool isActive = _selectedCategory == id;
+
+    // Determinamos el color dinámico según la categoría elegida cuando está activa
+    Color activeColor;
+    if (isActive) {
+      switch (id) {
+        case "Buenos":
+          activeColor = const Color.fromARGB(
+              255, 2, 223, 72); // Verde esmeralda para Buenos
+          break;
+        case "Alerta":
+          activeColor =
+              const Color(0xFFF59E0B); // Ámbar/Amarillo industrial para Alerta
+          break;
+        case "Critico":
+          activeColor = const Color(0xFFEF4444); // Rojo vibrante para Crítico
+          break;
+        default:
+          activeColor = const Color(
+              0xFF0059FF); // Azul actual para el check (Entregados) o cualquier otro
+      }
+    } else {
+      activeColor =
+          const Color.fromARGB(116, 255, 255, 255); // Color base inactivo
+    }
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (isActive) {
+            // SI YA ESTÁ SELECCIONADO, SE APAGA Y MUESTRA TODOS LOS LOTES
+            _selectedCategory = "Todos";
+          } else {
+            // SI NO ESTABA SELECCIONADO, SE ACTIVA NORMALMENTE
+            _selectedCategory = id;
+          }
+        });
+      },
+      child: Container(
+        // Si es icono (el check), le damos un ancho fijo pequeño
+        // Si es texto, DEJAMOS QUE EL EXPANDED DE ARRIBA MANDE
+        width: isIcon ? 45 : null,
+        height: 38,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: activeColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+              color: isActive ? activeColor : const Color(0xFFE2E8F0)),
+        ),
+        child: isIcon
+            ? IconTheme(
+                data: IconThemeData(
+                    color: isActive ? Colors.white : const Color(0xFF64748B)),
+                child: child!,
+              )
+            : Text(
+                label!,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize:
+                      12, // Mantén 12 para que el texto no se amontone en teléfonos mini
+                  fontWeight: FontWeight.w700,
+                  color: isActive ? Colors.white : const Color(0xFF64748B),
+                ),
+              ),
+      ),
+    );
+  }
+
   Widget _buildStatusIndicator(Lote lote) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: lote.colorEstado.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(Icons.sensors, color: lote.colorEstado, size: 24),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          "${lote.promedioTemperatura.toStringAsFixed(1)}°C",
-          style: GoogleFonts.orbitron(
-            color: const Color(0xFF0F172A),
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
+    final String estadoStr = lote.estadoActual.toUpperCase();
+
+    // Mapeo contextual y dinámico de iconografía
+    IconData statusIcon;
+
+    // 🎨 AQUÍ SE CONTROLA EL COLOR:
+    // Por defecto usa "lote.colorEstado". Si quieres cambiar los colores manualmente,
+    // puedes modificar los bloques "const Color(...)" de abajo a tu gusto.
+    Color iconColor;
+
+    if (estadoStr.contains('CRITICO')) {
+      statusIcon = Icons.error_rounded; // Alarma de peligro inminente
+      iconColor =
+          const Color(0xFFEF4444); // 🔴 Rojo personalizado si quieres forzarlo
+    } else if (estadoStr.contains('ALERTA')) {
+      statusIcon = Icons.warning_rounded; // Alarma preventiva
+      iconColor = const Color(0xFFF59E0B); // 🟡 Amarillo/Ámbar personalizado
+    } else if (estadoStr.contains('OPTIMO')) {
+      statusIcon = Icons.inventory_2_rounded; // El icono de caja/lote seguro
+      iconColor = const Color.fromARGB(255, 14, 216,
+          51); // 🟢 Verde actual (cámbialo aquí si deseas otro tono)
+    } else {
+      // Estado "ESPERANDO" o cualquier variable de incertidumbre
+      statusIcon =
+          Icons.pending_actions_rounded; // Reloj de expectativa logística
+      iconColor = const Color(0xFF0059FF); // 🔵 Azul industrial forzado
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(
+          12), // Espaciado interno perfecto para envolver el icono
+      decoration: BoxDecoration(
+        // Cambia el color de fondo de la cajita (usa el mismo color pero con 10% de opacidad)
+        color: iconColor.withValues(alpha: 0.1),
+        shape: BoxShape.rectangle,
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: Icon(
+        statusIcon,
+        color: iconColor, // Cambia el color del icono interno en sí
+        size: 21,
+      ),
     );
   }
 
@@ -419,32 +1190,39 @@ class _MonitorScreenState extends State<MonitorScreen>
   Widget _buildLinearProgress(Lote lote) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.end,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text("INTEGRIDAD TÉRMICA",
-                style: TextStyle(
-                    color: Color(0xFF94A3B8),
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold)),
+            Text(
+              "INTEGRIDAD",
+              style: GoogleFonts.inter(
+                  color: const Color(0xFF94A3B8),
+                  fontSize: 8,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.3),
+            ),
             Text(lote.entregado ? "ENTREGADO" : "EN TRÁNSITO",
-                style: TextStyle(
+                style: GoogleFonts.inter(
                     color: lote.entregado
-                        ? const Color(0xFF10B981)
-                        : const Color(0xFF3B82F6),
+                        ? const Color.fromARGB(255, 16, 216, 39)
+                        : const Color.fromARGB(255, 75, 142, 250),
                     fontSize: 8,
-                    fontWeight: FontWeight.w900)),
+                    fontWeight: FontWeight.w700)),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         ClipRRect(
           borderRadius: BorderRadius.circular(10),
           child: LinearProgressIndicator(
             value: lote.entregado ? 1.0 : 0.65,
             backgroundColor: const Color(0xFFE2E8F0),
-            color: lote.colorEstado,
-            minHeight: 4,
+            // 👇 CAMBIO AQUÍ: Elige tu color fijo o usa una condición como esta:
+            color: lote.entregado
+                ? const Color.fromARGB(255, 16, 216, 39)
+                : const Color.fromARGB(255, 190, 190, 190),
+            minHeight: 3.6,
           ),
         ),
       ],
@@ -516,292 +1294,299 @@ class _MonitorScreenState extends State<MonitorScreen>
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(10)),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width:
+                  40, // Corregido el ancho del indicador superior para que sea visible y elegante
+              height: 4,
+              decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            const SizedBox(height: 24),
+            Text("GESTIÓN DE LOGÍSTICA",
+                style: GoogleFonts.orbitron(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: const Color(0xFF64748B))),
+            const SizedBox(height: 20),
+            if (widget.role == "admin" || widget.role == "OPA")
+              _buildMenuOption(
+                icon: Icons.add_box_rounded,
+                label: "CREAR NUEVO LOTE",
+                color: const Color(0xFF3B82F6),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showFormModal(tipo: "crear");
+                },
               ),
-              const SizedBox(height: 24),
-              Text("GESTIÓN DE LOGÍSTICA",
-                  style: GoogleFonts.orbitron(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: const Color(0xFF64748B))),
-              const SizedBox(height: 20),
-
-              // 1. OPCIÓN CREAR
-              if (widget.role == "admin" || widget.role == "OPA")
-                _buildMenuOption(
-                  icon: Icons.add_box_rounded,
-                  label: "CREAR NUEVO LOTE",
-                  color: const Color(0xFF3B82F6),
-                  onTap: () {
-                    // <--- CAMBIADO AQUÍ
-                    Navigator.pop(context);
-                    _showFormModal(tipo: "crear");
-                  },
+            if (widget.role == "OPT")
+              _buildMenuOption(
+                icon: Icons.link_rounded,
+                label: "VINCULAR CUSTODIA",
+                color: const Color(0xFF10B981),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showFormModal(tipo: "vincular");
+                },
+              ),
+            if (widget.role == "admin" || widget.role == "OPT")
+              _buildMenuOption(
+                icon: Icons.domain_verification_rounded,
+                label: "MARCAR COMO ENTREGADO",
+                color: const Color(0xFFF59E0B),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showFormModal(tipo: "entregar");
+                },
+              ),
+            const SizedBox(height: 10),
+            Center(
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color.fromARGB(255, 255, 255, 255),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.grey[300]!, width: 1),
+                  ),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    size: 24,
+                    color: Colors.grey,
+                  ),
                 ),
-
-              // 2. OPCIÓN VINCULAR
-              if (widget.role == "OPT")
-                _buildMenuOption(
-                  icon: Icons.link_rounded,
-                  label: "VINCULAR CUSTODIA",
-                  color: const Color(0xFF10B981),
-                  onTap: () {
-                    // <--- CAMBIADO AQUÍ
-                    Navigator.pop(context);
-                    _showFormModal(tipo: "vincular");
-                  },
-                ),
-
-              // 3. OPCIÓN ENTREGAR
-              if (widget.role == "admin" || widget.role == "OPT")
-                _buildMenuOption(
-                  icon: Icons.domain_verification_rounded,
-                  label: "MARCAR COMO ENTREGADO",
-                  color: const Color(0xFFF59E0B),
-                  onTap: () {
-                    Navigator.pop(context); // Cierra el menú de Drive
-                    _showFormModal(
-                        tipo: "entregar"); // ABRE EL FORMULARIO DE ENTREGA
-                  },
-                ),
-
-              const SizedBox(height: 10),
-              IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded,
-                      size: 30, color: Colors.grey)),
-            ],
-          ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-// --- MOTOR DE FORMULARIOS INDUSTRIALES ---
   // --- MOTOR DE FORMULARIOS DINÁMICO ---
   void _showFormModal({required String tipo}) {
-    // Limpiamos controladores antes de abrir para que no haya datos viejos
-    _currentFormType = tipo; // <--- Seteamos el contexto antes de validar
+    _currentFormType = tipo;
     _clearControllers();
+    String? localError;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-              Text(
-                tipo == "crear"
-                    ? "NUEVO DESPACHO"
-                    : (tipo == "vincular"
-                        ? "MONITOREAR UNIDAD"
-                        : "CONFIRMAR ENTREGA"),
-                style: GoogleFonts.orbitron(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: const Color(0xFF0F172A)),
-              ),
-              const SizedBox(height: 24),
-
-              // CAMPO 1: Código o Nombre del Lote
-              _buildModernField(
-                  controller: _codigoController,
-                  label:
-                      tipo == "entregar" ? "NOMBRE DEL LOTE" : "CÓDIGO DE LOTE",
-                  icon: tipo == "entregar"
-                      ? Icons.label_important_rounded
-                      : Icons.qr_code_scanner_rounded),
-              const SizedBox(height: 16),
-
-              // CAMPO 2: Producto (Crear/Vincular) o Nombre del OPA (Entrega)
-              _buildModernField(
-                  controller: (tipo == "entregar" || tipo == "vincular")
-                      ? _nombreOpaController
-                      : _productoController,
-                  label: (tipo == "entregar" || tipo == "vincular")
-                      ? "NOMBRE DEL OPA (EMISOR)"
-                      : "PRODUCTO / CARGA",
-                  icon: (tipo == "entregar" || tipo == "vincular")
-                      ? Icons.person_pin_rounded
-                      : Icons.inventory_2_outlined),
-
-              const SizedBox(height: 16),
-
-              // CAMPO 3: Temperaturas (Solo para Crear/Vincular) O Contraseña (Para todos)
-              if (tipo != "entregar") ...[
-                Row(
-                  children: [
-                    Expanded(
-                        child: _buildModernField(
-                            controller: _tempMinController,
-                            label: "MIN °C",
-                            icon: Icons.ac_unit_rounded,
-                            isNumber: true)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                        child: _buildModernField(
-                            controller: _tempMaxController,
-                            label: "MAX °C",
-                            icon: Icons.wb_sunny_rounded,
-                            isNumber: true)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-              ],
-
-              // NUEVO CAMPO: CONTRASEÑA (Obligatorio en Crear y Entregar)
-              _buildModernField(
-                  controller: _passwordLoteController,
-                  label: "CONTRASEÑA DE SEGURIDAD",
-                  icon: Icons.lock_outline_rounded,
-                  isPassword: true),
-
-              const SizedBox(height: 32),
-
-              // BOTÓN DE ACCIÓN
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: tipo == "entregar"
-                        ? const Color(0xFFF59E0B)
-                        : const Color(0xFF0F172A),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+            ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(10)),
                   ),
-
-// Busca el bloque del ElevatedButton en _showFormModal y reemplázalo por este:
-
-                  onPressed: _isLoadingAction
-                      ? null
-                      : () async {
-                          final error = _validarFormularioLote();
-                          if (error != null) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: Text(error),
-                                backgroundColor: Colors.redAccent));
-                            return;
-                          }
-
-                          setState(() => _isLoadingAction = true);
-
-                          try {
-                            final String codigo = _codigoController.text.trim();
-                            final String password =
-                                _passwordLoteController.text.trim();
-
-                            if (tipo == "crear") {
-                              // EXPLICACIÓN: Cambiamos 'temp_min_esperada' por 'temp_min_ideal'
-                              // para que coincida exactamente con schemas.py (LoteBase)
-                              final double min = double.parse(
-                                  _tempMinController.text.replaceAll(',', '.'));
-                              final double max = double.parse(
-                                  _tempMaxController.text.replaceAll(',', '.'));
-
-                              await _loteService.createLote(widget.token, {
-                                "codigo_lote": codigo,
-                                "producto": _productoController.text.trim(),
-                                "temp_min_ideal": min, // <--- LLAVE CORREGIDA
-                                "temp_max_ideal": max, // <--- LLAVE CORREGIDA
-                                "password_lote": password,
-                              });
-                            } else if (tipo == "vincular") {
-                              // EXPLICACIÓN: Tu schema 'LoteVincular' EXIGE 'nombre_opa'.
-                              // Si no lo envías, el backend arroja error 422.
-                              await _loteService.vincularLote(widget.token, {
-                                "nombre_opa": _nombreOpaController.text
-                                    .trim(), // <--- CAMPO AÑADIDO
-                                "codigo_lote": codigo,
-                                "password_lote": password,
-                              });
-                            } else if (tipo == "entregar") {
-                              await _loteService.entregarLote(widget.token, {
-                                "nombre_opa": _nombreOpaController.text.trim(),
-                                "codigo_lote": codigo,
-                                "password_lote": password,
-                              });
-                            }
-
-                            if (mounted) {
-                              Navigator.pop(context);
-                              _loadData();
-                              _clearControllers();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content:
-                                          Text("OPERACIÓN PROCESADA CON ÉXITO"),
-                                      backgroundColor: Color(0xFF10B981)));
-                            }
-                          } catch (e) {
-                            if (mounted) {
-                              // Mostramos el error real que viene del servicio para debuguear mejor
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                      content: Text("ERROR: $e"),
-                                      backgroundColor: Colors.red));
-                            }
-                          } finally {
-                            if (mounted)
-                              setState(() => _isLoadingAction = false);
-                          }
-                        },
-
-                  child: _isLoadingAction
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2))
-                      : Text(
-                          tipo == "entregar"
-                              ? "FINALIZAR ENTREGA"
-                              : "CONFIRMAR REGISTRO",
-                          style: GoogleFonts.inter(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white)),
                 ),
-              ),
-              const SizedBox(height: 10),
-            ],
+                Text(
+                  tipo == "crear"
+                      ? "NUEVO DESPACHO"
+                      : (tipo == "vincular"
+                          ? "MONITOREAR UNIDAD"
+                          : "CONFIRMAR ENTREGA"),
+                  style: GoogleFonts.orbitron(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: const Color(0xFF0F172A)),
+                ),
+                const SizedBox(height: 24),
+                _buildModernField(
+                    controller: _codigoController,
+                    label: tipo == "entregar"
+                        ? "NOMBRE DEL LOTE"
+                        : "CÓDIGO DE LOTE",
+                    icon: tipo == "entregar"
+                        ? Icons.label_important_rounded
+                        : Icons.qr_code_scanner_rounded),
+                const SizedBox(height: 16),
+                _buildModernField(
+                    controller: (tipo == "entregar" || tipo == "vincular")
+                        ? _nombreOpaController
+                        : _productoController,
+                    label: (tipo == "entregar" || tipo == "vincular")
+                        ? "NOMBRE DEL OPA (EMISOR)"
+                        : "PRODUCTO / CARGA",
+                    icon: (tipo == "entregar" || tipo == "vincular")
+                        ? Icons.person_pin_rounded
+                        : Icons.inventory_2_outlined),
+                const SizedBox(height: 16),
+                if (tipo != "entregar" && tipo != "vincular") ...[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                          child: _buildModernField(
+                              controller: _tempMinController,
+                              label: "MIN °C",
+                              icon: Icons.ac_unit_rounded,
+                              isNumber: true)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                          child: _buildModernField(
+                              controller: _tempMaxController,
+                              label: "MAX °C",
+                              icon: Icons.wb_sunny_rounded,
+                              isNumber: true)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                _buildModernField(
+                    controller: _passwordLoteController,
+                    label: "CONTRASEÑA DE SEGURIDAD",
+                    icon: Icons.lock_outline_rounded,
+                    isPassword: true),
+                if (localError != null)
+                  Column(
+                    children: [
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline_rounded,
+                                color: Colors.redAccent, size: 18),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(localError!,
+                                  style: GoogleFonts.inter(
+                                      color: Colors.redAccent,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: tipo == "entregar"
+                          ? const Color(0xFFF59E0B)
+                          : const Color(0xFF0F172A),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                    ),
+                    onPressed: _isLoadingAction
+                        ? null
+                        : () async {
+                            final errorMsg = _validarFormularioLote();
+                            if (errorMsg != null) {
+                              setModalState(() => localError = errorMsg);
+                              return;
+                            }
+
+                            setModalState(() => _isLoadingAction = true);
+                            setState(() => _isLoadingAction = true);
+
+                            try {
+                              final String codigo =
+                                  _codigoController.text.trim();
+                              final String password =
+                                  _passwordLoteController.text.trim();
+
+                              if (tipo == "crear") {
+                                final double min = double.parse(
+                                    _tempMinController.text
+                                        .replaceAll(',', '.'));
+                                final double max = double.parse(
+                                    _tempMaxController.text
+                                        .replaceAll(',', '.'));
+
+                                await _loteService.createLote(widget.token, {
+                                  "codigo_lote": codigo,
+                                  "producto": _productoController.text.trim(),
+                                  "temp_min_ideal": min,
+                                  "temp_max_ideal": max,
+                                  "password_lote": password,
+                                });
+                              } else if (tipo == "vincular") {
+                                await _loteService.vincularLote(widget.token, {
+                                  "nombre_opa":
+                                      _nombreOpaController.text.trim(),
+                                  "codigo_lote": codigo,
+                                  "password_lote": password,
+                                });
+                              } else if (tipo == "entregar") {
+                                await _loteService.entregarLote(widget.token, {
+                                  "nombre_opa":
+                                      _nombreOpaController.text.trim(),
+                                  "codigo_lote": codigo,
+                                  "password_lote": password,
+                                });
+                              }
+
+                              if (mounted) {
+                                _isLoadingAction = false;
+                                Navigator.pop(context);
+                                _loadData();
+                                _clearControllers();
+                              }
+                            } catch (e) {
+                              setModalState(() {
+                                _isLoadingAction = false;
+                                localError =
+                                    e.toString().replaceAll("Exception:", "");
+                              });
+                              setState(() => _isLoadingAction = false);
+                            }
+                          },
+                    child: _isLoadingAction
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : Text(
+                            tipo == "entregar"
+                                ? "FINALIZAR ENTREGA"
+                                : "CONFIRMAR REGISTRO",
+                            style: GoogleFonts.inter(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white)),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -813,38 +1598,185 @@ class _MonitorScreenState extends State<MonitorScreen>
     required String label,
     required IconData icon,
     bool isNumber = false,
-    bool isPassword = false, // <--- Nueva propiedad
+    bool isPassword = false,
+    String?
+        errorText, // 👈 Convertido de forma correcta a Parámetro Opcional para evitar crasheos de compilación
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 10,
-              offset: const Offset(0, 4))
-        ],
-      ),
-      child: TextField(
-        controller: controller,
-        obscureText: isPassword, // <--- Oculta el texto si es password
-        keyboardType: isNumber
-            ? const TextInputType.numberWithOptions(decimal: true)
-            : TextInputType.text,
-        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
-          prefixIcon: Icon(icon, size: 20, color: const Color(0xFF3B82F6)),
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none),
-          contentPadding: const EdgeInsets.symmetric(vertical: 16),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: errorText != null
+                ? Border.all(color: Colors.redAccent, width: 1.5)
+                : null,
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4))
+            ],
+          ),
+          child: TextField(
+            controller: controller,
+            obscureText: isPassword,
+            keyboardType: isNumber
+                ? const TextInputType.numberWithOptions(decimal: true)
+                : TextInputType.text,
+            style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
+            decoration: InputDecoration(
+              labelText: label,
+              labelStyle:
+                  const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+              floatingLabelBehavior: FloatingLabelBehavior.never,
+              prefixIcon: Icon(icon,
+                  size: 20,
+                  color: errorText != null
+                      ? Colors.redAccent
+                      : const Color(0xFF3B82F6)),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none),
+              contentPadding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
         ),
+        if (errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 8, top: 4),
+            child: Text(
+              errorText,
+              style: GoogleFonts.inter(
+                  color: Colors.redAccent,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ==========================================================================
+  // 📍 NUEVA FUNCIÓN: DIÁLOGO DESPLEGABLE DE CIERRE DE SESIÓN (ESTILO PREMIUM)
+  // ==========================================================================
+  void _showLogoutBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      elevation: 10,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
+      builder: (BuildContext bc) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min, // Ajuste compacto al contenido
+              children: [
+                // Indicador visual superior (Gris Slate sutil)
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Mensaje de advertencia
+                Text(
+                  "¿Seguro que deseas cerrar sesión?",
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // BOTÓN DE ACCIÓN CRÍTICA (Rojo Premium)
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFFEF4444),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed: () async {
+                      // 1. Ocultar el modal de inmediato
+                      Navigator.pop(context);
+
+                      // 2. Destruir token y rol en las SharedPreferences locales
+                      final authService = AuthService();
+                      await authService.logout();
+
+                      // 3. Purga completa de la pila de rutas hacia el Login
+                      if (context.mounted) {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const LoginScreen()),
+                          (route) =>
+                              false, // Impide el retorno con el botón físico "Atrás"
+                        );
+                      }
+                    },
+                    child: Text(
+                      "Cerrar sesión",
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // LÍNEA DIVISORA COMPACTA Y CONTROLADA
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+                  child: Divider(
+                    color: Color(0xFFF1F5F9), // Slate 100 muy tenue
+                    thickness: 1.5,
+                  ),
+                ),
+
+                // BOTÓN DE CANCELACIÓN
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF64748B),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed: () =>
+                        Navigator.pop(context), // Cierra solo el bottomsheet
+                    child: Text(
+                      "Cancelar",
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

@@ -1,20 +1,14 @@
 import 'package:flutter/material.dart';
-
 import 'package:syncfusion_flutter_charts/charts.dart';
-
 import 'package:google_fonts/google_fonts.dart';
-
 import 'package:intl/intl.dart';
-
 import 'dart:math';
 
 import '../models/lote_model.dart';
-
 import '../services/lote_service.dart';
 
 class LoteDetailScreen extends StatefulWidget {
   final String token;
-
   final int loteId;
 
   const LoteDetailScreen({
@@ -30,58 +24,50 @@ class LoteDetailScreen extends StatefulWidget {
 class _LoteDetailScreenState extends State<LoteDetailScreen> {
   final LoteService _loteService = LoteService();
 
-  late Future<Lote> _loteFuture;
+  late Future<Map<String, dynamic>> _loteFuture;
+  String _rangoSeleccionado = "24h";
 
   @override
   void initState() {
     super.initState();
-
-    _loadData(); // Dispara la petición al API al iniciar
+    _loadData();
   }
 
   void _loadData() {
-    _loteFuture = _loteService.fetchLoteDetail(widget.token, widget.loteId);
+    _loteFuture = _loteService.fetchLoteDetail(
+      widget.token,
+      widget.loteId,
+      rangoFecha: _rangoSeleccionado,
+    );
   }
 
   // ==========================================================================
-
-  // MOTOR DE RENDERIZADO DEL GRÁFICO (LÓGICA DE SERIES)
-
+  // MOTOR DE RENDERIZADO DEL GRÁFICO (EXTRACTO COMPATIBLE CON TU BACKEND)
   // ==========================================================================
-
   List<CartesianSeries<Telemetria, String>> _buildProfessionalSeries(
-      Lote lote, bool isFullScreen) {
+      List<Telemetria> telemetrias, Lote lote) {
     List<CartesianSeries<Telemetria, String>> series = [];
 
-    if (lote.telemetrias.isEmpty) return series;
+    if (telemetrias.isEmpty) return series;
 
-    // Ordenar para asegurar continuidad cronológica
-    final data = List<Telemetria>.from(lote.telemetrias)
+    final data = List<Telemetria>.from(telemetrias)
       ..sort((a, b) => a.fechaRegistro.compareTo(b.fechaRegistro));
 
     series.add(LineSeries<Telemetria, String>(
       dataSource: data,
       xValueMapper: (t, _) => DateFormat('HH:mm:ss').format(t.fechaRegistro),
       yValueMapper: (t, _) => t.temperatura,
-
-      // --- ESTILO "BOLSA DE VALORES" (RECTO) ---
-      animationDuration:
-          0, // CRÍTICO: Elimina el efecto elástico/suavizado al cargar
-      width: 1.5, // grosor de linea
-      color:
-          const Color.fromARGB(255, 165, 178, 190), //cambia color de la linea
-
-      // Configuración de los puntos (nodos)
+      animationDuration: 0,
+      width: 1.5,
+      color: const Color.fromARGB(255, 165, 178, 190),
       markerSettings: const MarkerSettings(
-        isVisible: true, //true muestra puntos
+        isVisible: true,
         height: 3.5,
         width: 3.5,
         shape: DataMarkerType.circle,
         borderWidth: 1,
         borderColor: Color.fromARGB(255, 173, 175, 176),
       ),
-
-      // Mantenemos tu lógica de colores para los puntos
       pointColorMapper: (t, _) {
         final bool isOptimal = t.temperatura <= lote.tempMaxIdeal &&
             t.temperatura >= lote.tempMinIdeal;
@@ -95,9 +81,8 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: _buildModernAppBar(context),
-      body: FutureBuilder<Lote>(
+      backgroundColor: const Color.fromARGB(255, 249, 249, 249),
+      body: FutureBuilder<Map<String, dynamic>>(
         future: _loteFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -110,45 +95,138 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
           }
           if (!snapshot.hasData) return const Center(child: Text("Sin datos"));
 
-          final lote = snapshot.data!;
+          final Map<String, dynamic> dataRaw = snapshot.data!;
 
-          return RefreshIndicator(
-            onRefresh: () async => setState(() => _loadData()),
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                children: [
-                  const SizedBox(height: 10),
+          final Map<String, dynamic> loteJson = dataRaw.containsKey('lote')
+              ? dataRaw['lote'] as Map<String, dynamic>
+              : dataRaw;
+          final lote = Lote.fromJson(loteJson);
 
-                  _buildHeaderInfo(lote), // Código del Lote y Producto
+          final List<dynamic> lecturasRaw = dataRaw['historial_lecturas'] ?? [];
+          final List<Telemetria> listaTelemetrias = lecturasRaw
+              .map((t) => Telemetria.fromJson(t as Map<String, dynamic>))
+              .toList();
 
-                  const SizedBox(height: 25),
+          final double? tempActualBackend =
+              dataRaw['temperatura_actual'] != null
+                  ? (dataRaw['temperatura_actual'] as num).toDouble()
+                  : null;
 
-                  _buildMetricsRow(
-                      lote), // Los 3 cuadros superiores (Min, Estado, Max)
+          final double? tempPromedioBackend =
+              dataRaw['temperatura_promedio'] != null
+                  ? (dataRaw['temperatura_promedio'] as num).toDouble()
+                  : null;
 
-                  const SizedBox(height: 30),
+          // 📍 ESTRUCTURA FIJA INTEGRADA: Todo lo que esté en esta columna inicial NO se moverá nunca
+          return Column(
+            children: [
+              // 📍 CONTROL EXACTO DE ALTURA DESDE EL BORDE SUPERIOR DEL CELULAR
+              const SizedBox(height: 20),
 
-                  // CONTENEDOR DEL GRÁFICO REDUCIDO
+              // 📍 ACCIÓN BAR DE PRECISIÓN (Totalmente fija arriba)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: SizedBox(
+                  height: 106,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      // 1. FLECHA DE REGRESAR "<"
+                      Positioned(
+                        left: 3.5,
+                        top: 8.0,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: const Icon(Icons.arrow_back_ios_new,
+                              color: Color(0xFF0F172A), size: 20),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ),
 
-                  GestureDetector(
-                    onTap: () => _showFullScreenChart(
-                        context, lote), // Abre la pantalla completa
+                      // 2. TEXTO "TEMPERATURA"
+                      Positioned(
+                        left: 14.0,
+                        top: 36.0,
+                        child: _buildHeaderInfo(lote),
+                      ),
 
-                    child: _buildChartContainer(lote, isFullScreen: false),
+                      // 3. BOTÓN AZUL DE TEMPERATURA
+                      Positioned(
+                        right: 14.5,
+                        top: 39.5,
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                              color: const Color(0xFF3B82F6).withOpacity(0.12),
+                              shape: BoxShape.circle),
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(Icons.thermostat,
+                                color: Color(0xFF3B82F6), size: 20),
+                            onPressed: () => _showFilterBottomSheet(context),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-
-                  const SizedBox(height: 35),
-
-                  _buildSectionTitle("HISTORIAL DE TRAZABILIDAD"),
-
-                  _buildTimelineList(lote), // Lista de lecturas inferiores
-
-                  const SizedBox(height: 50),
-                ],
+                ),
               ),
-            ),
+
+              const SizedBox(height: 17),
+
+              // 📍 CUADRÍCULA DE MÉTRICAS COMPLETAMENTE FIJA (Ya no se desplaza ni baila al actualizar)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _buildNewMetricsGrid(lote, listaTelemetrias,
+                    tempActualBackend, tempPromedioBackend),
+              ),
+
+              const SizedBox(height: 30),
+
+              // ==========================================
+              // AREA DINÁMICA: Solo lo de aquí abajo tiene Scroll y activa el Refresh
+              // ==========================================
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: () async => setState(() => _loadData()),
+                  color: const Color(0xFF3B82F6),
+                  // edgeOffset y displacement controlan que el círculo de carga salga sutilmente abajo de las tarjetas
+                  edgeOffset: 0,
+                  displacement: 20,
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(
+                      parent:
+                          AlwaysScrollableScrollPhysics(), // Asegura el refresh aunque falten datos
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      children: [
+                        // Gráfica de temperatura
+                        GestureDetector(
+                          onTap: () => _showFullScreenChart(
+                              context, listaTelemetrias, lote),
+                          child: _buildChartContainer(listaTelemetrias, lote,
+                              isFullScreen: false),
+                        ),
+
+                        // Bloques condicionales a la existencia de datos
+                        if (listaTelemetrias.isNotEmpty) ...[
+                          const SizedBox(height: 5),
+                          _buildTechnicalDataBox(lote),
+                          const SizedBox(height: 25),
+                          _buildSectionTitle("HISTORIAL DE TRAZABILIDAD"),
+                          _buildTimelineList(listaTelemetrias, lote),
+                        ],
+
+                        const SizedBox(height: 50),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -157,59 +235,53 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
 
   // ==========================================================================
   double getVisibleTopLimit(
-    double axisMin,
-    double axisMax,
-    double interval,
-    double idealMax,
-  ) {
+      double axisMin, double axisMax, double interval, double idealMax) {
     List<double> visibleLabels = [];
-
     for (double v = axisMin; v <= axisMax; v += interval) {
       visibleLabels.add(v);
     }
-
     double lastVisible = visibleLabels.last;
-
-    // Si el límite máximo ideal entra en el eje visible
-    if (idealMax <= lastVisible) {
-      return idealMax;
-    }
-
-    // Si NO entra, usamos el último valor visible
+    if (idealMax <= lastVisible) return idealMax;
     return lastVisible;
   }
-  // CONFIGURACIÓN DEL FRAME DEL GRÁFICO (Ejes, Trackball, Sombras)
 
-  // ==========================================================================
+  Widget _buildChartContainer(List<Telemetria> telemetrias, Lote lote,
+      {required bool isFullScreen}) {
+    if (telemetrias.isEmpty) {
+      return Container(
+        height: 260,
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.sensors_off_rounded,
+                color: Color(0xFF94A3B8), size: 36),
+            const SizedBox(height: 8),
+            Text(
+              'No hay datos ingresados en este lote.',
+              style: GoogleFonts.inter(
+                  color: const Color(0xFF94A3B8), fontSize: 12),
+            ),
+          ],
+        ),
+      );
+    }
 
-  Widget _buildChartContainer(Lote lote, {required bool isFullScreen}) {
-    final allTemps = lote.telemetrias.map((t) => t.temperatura).toList();
-
-    final double rawMin = (allTemps.isEmpty ? -20 : allTemps.reduce(min)) - 2;
-    final double rawMax = (allTemps.isEmpty ? 0 : allTemps.reduce(max)) + 2;
+    final allTemps = telemetrias.map((t) => t.temperatura).toList();
+    final double rawMin = allTemps.reduce(min) - 2;
+    final double rawMax = allTemps.reduce(max) + 2;
     final double axisMin = rawMin.floorToDouble();
     final double axisMax = rawMax.ceilToDouble();
-
     const double yInterval = 2.0;
 
-    final double visibleTopForBand = getVisibleTopLimit(
-      axisMin,
-      axisMax,
-      yInterval,
-      lote.tempMaxIdeal,
-    );
-
+    final double visibleTopForBand =
+        getVisibleTopLimit(axisMin, axisMax, yInterval, lote.tempMaxIdeal);
     final double visibleBandStart = max(lote.tempMinIdeal, axisMin);
-
     final double visibleBandEnd = visibleTopForBand;
-
-// SOLO mostramos el verde si existe un área REAL visible
     final bool shouldShowBand = visibleBandEnd > visibleBandStart;
-    // 1. ELIMINAMOS la lógica de initialVisibleMin que causaba el conflicto
-    // No es necesaria si usamos autoScrollingDelta correctamente.
 
     return Container(
-      height: isFullScreen ? null : 340,
+      height: isFullScreen ? null : 355,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(isFullScreen ? 0 : 25),
@@ -217,258 +289,549 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
             ? []
             : [
                 BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
+                    color: Colors.black.withOpacity(0.03),
                     blurRadius: 20,
                     offset: const Offset(0, 10))
               ],
       ),
-      padding: const EdgeInsets.all(12),
-      child: SfCartesianChart(
-        zoomPanBehavior: ZoomPanBehavior(
-          enablePanning: true,
-          zoomMode: ZoomMode.x,
-        ),
-        plotAreaBorderWidth: 0,
-        title: ChartTitle(
-            text: isFullScreen ? "" : "VISTA ANALITICA",
-            textStyle: GoogleFonts.inter(
-                fontSize: 9,
-                fontWeight: FontWeight.w900,
-                color: const Color(0xFF94A3B8),
-                letterSpacing: 1)),
-
-        // 2. CORRECCIÓN DEL TRACKBALL: El builder va FUERA de tooltipSettings
-        trackballBehavior: TrackballBehavior(
-          enable: true,
-          activationMode: ActivationMode.singleTap,
-          // builder movido aquí para que funcione correctamente
-          builder: (BuildContext context, TrackballDetails details) {
-            // Solución al error de num? mediante .toDouble()
-            final double temp = (details.point?.y ?? 0.0).toDouble();
-            final int index = details.pointIndex!;
-            final Telemetria data = lote.telemetrias[index];
-            final String hora =
-                DateFormat('HH:mm:ss').format(data.fechaRegistro);
-            final bool isOptimal =
-                temp <= lote.tempMaxIdeal && temp >= lote.tempMinIdeal;
-            final Color colorBase = isOptimal
-                ? const Color.fromARGB(255, 1, 204, 255)
-                : const Color(0xFFEF4444);
-
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A),
-                  borderRadius: BorderRadius.circular(8)),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Color.fromARGB(255, 193, 146, 52),
-                          Color.fromARGB(255, 0, 0, 0),
-                        ],
-                      ),
-                      border: Border.all(color: colorBase, width: 1.5),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text("${temp.toStringAsFixed(1)}°C   ( $hora )",
-                      style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold)),
-                ],
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!isFullScreen) ...[
+            Padding(
+              padding: const EdgeInsets.only(left: 6, top: 4, bottom: 6),
+              child: Text(
+                "Gráfica de Temperatura",
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1E293B),
+                ),
               ),
-            );
-          },
-          tooltipSettings: const InteractiveTooltip(
-              enable: false), // Solo el builder maneja el diseño
-          lineType: TrackballLineType.vertical,
-          lineColor: const Color(0xFF3B82F6).withValues(alpha: 0.3),
-        ),
+            ),
+          ],
+          Expanded(
+            child: SfCartesianChart(
+              zoomPanBehavior:
+                  ZoomPanBehavior(enablePanning: true, zoomMode: ZoomMode.x),
+              plotAreaBorderWidth: 0,
+              trackballBehavior: TrackballBehavior(
+                enable: true,
+                activationMode: ActivationMode.singleTap,
+                builder: (BuildContext context, TrackballDetails details) {
+                  final double temp = (details.point?.y ?? 0.0).toDouble();
+                  final int index = details.pointIndex!;
+                  final Telemetria data = telemetrias[index];
+                  final String hora =
+                      DateFormat('HH:mm:ss').format(data.fechaRegistro);
+                  final bool isOptimal =
+                      temp <= lote.tempMaxIdeal && temp >= lote.tempMinIdeal;
+                  final Color colorBase = isOptimal
+                      ? const Color(0xFF00E5FF)
+                      : const Color(0xFFEF4444);
 
-        primaryXAxis: CategoryAxis(
-          isVisible: true,
-          axisLine: const AxisLine(width: 0), // Oculta la línea base
-          majorGridLines:
-              const MajorGridLines(width: 0), // Quita las líneas verticales
-          majorTickLines:
-              const MajorTickLines(size: 0), // Quita las rayitas de los números
-
-          // Ocultamos los números (horas) dándoles un tamaño de 0
-          labelStyle: const TextStyle(fontSize: 0),
-
-          // Ponemos el texto de "ZONA ÓPTIMA" justo aquí
-          title: AxisTitle(
-            text: 'ZONA OPTIMA  ■',
-            textStyle: GoogleFonts.inter(
-              fontSize: 9,
-              fontWeight: FontWeight.w900,
-              color:
-                  const Color.fromARGB(255, 19, 192, 88), // El verde de éxito
-              letterSpacing: 1.5,
+                  return Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A),
+                        borderRadius: BorderRadius.circular(8)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: colorBase,
+                              width: 1.5,
+                            ),
+                            gradient: const LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Color.fromARGB(255, 187, 137, 43),
+                                Color(0xFF000000),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text("${temp.toStringAsFixed(1)}°C   ( $hora )",
+                            style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  );
+                },
+                tooltipSettings: const InteractiveTooltip(enable: false),
+                lineType: TrackballLineType.vertical,
+                lineColor: const Color(0xFF3B82F6).withOpacity(0.3),
+              ),
+              primaryXAxis: CategoryAxis(
+                isVisible: true,
+                axisLine: const AxisLine(width: 0),
+                majorGridLines: const MajorGridLines(width: 0),
+                majorTickLines: const MajorTickLines(size: 0),
+                labelStyle: const TextStyle(fontSize: 0),
+                // 📍 Se eliminó el AxisTitle interno para evitar errores con 'margin'
+                autoScrollingDelta: 5,
+                autoScrollingMode: AutoScrollingMode.end,
+              ),
+              primaryYAxis: NumericAxis(
+                minimum: axisMin,
+                maximum: axisMax,
+                interval: yInterval,
+                labelFormat: '{value}°C',
+                axisLine: const AxisLine(width: 0),
+                majorGridLines:
+                    const MajorGridLines(width: 1.5, color: Color(0xFFF1F5F9)),
+                labelStyle: GoogleFonts.inter(
+                    color: const Color(0xFF94A3B8),
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold),
+                plotBands: shouldShowBand
+                    ? [
+                        PlotBand(
+                          start: visibleBandStart,
+                          end: visibleBandEnd,
+                          color: const Color.fromARGB(255, 55, 255, 0)
+                              .withOpacity(0.09),
+                          isVisible: true,
+                        ),
+                      ]
+                    : [],
+              ),
+              series: _buildProfessionalSeries(telemetrias, lote),
             ),
           ),
-          autoScrollingDelta: 3,
-          autoScrollingMode: AutoScrollingMode.end,
-        ),
 
-        primaryYAxis: NumericAxis(
-          minimum: axisMin,
-          maximum: axisMax,
-          interval: yInterval,
-          labelFormat: '{value}°C',
-          axisLine: const AxisLine(width: 0),
-          majorGridLines:
-              const MajorGridLines(width: 1.5, color: Color(0xFFF1F5F9)),
-          labelStyle: GoogleFonts.inter(
-              color: const Color(0xFF94A3B8),
-              fontSize: 9,
-              fontWeight: FontWeight.bold),
-          plotBands: shouldShowBand
-              ? [
-                  PlotBand(
-                    start: visibleBandStart,
-                    end: visibleBandEnd,
-                    color: const Color.fromARGB(255, 55, 255, 0)
-                        .withValues(alpha: 0.09),
-                    isVisible: true,
-                  ),
-                ]
-              : [],
-        ),
+          // 📍 SOLUCIÓN CON CONSTANTES DE FLUTTER FUERA DEL GRÁFICO
+          const SizedBox(
+              height:
+                  10), // 👈 MODIFICA ESTE NÚMERO para darle más o menos distancia de la gráfica
 
-        series: _buildProfessionalSeries(lote, isFullScreen),
+          Align(
+            alignment: Alignment
+                .center, // Centra la palabra perfectamente debajo de la cuadrícula
+            child: Text(
+              'ZONA OPTIMA  ■',
+              style: GoogleFonts.inter(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                  color: const Color.fromARGB(255, 19, 192, 88),
+                  letterSpacing: 1.5),
+            ),
+          ),
+          const SizedBox(
+              height:
+                  5), // Pequeño aire respecto al borde inferior de la tarjeta blanca
+        ],
       ),
     );
   }
 
-  // ==========================================================================
+  void _showFilterBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        final opciones = {
+          "24h": "Últimas 24 horas",
+          "3dias": "Últimos 3 días",
+          "semana": "Última semana",
+          "mes": "Último mes",
+          "todo": "Todo el historial"
+        };
 
-  // UI - COMPONENTES VISUALES SECUNDARIOS
-
-  // ==========================================================================
-
-  // AppBar: Título y botón de retroceso
-
-  PreferredSizeWidget _buildModernAppBar(BuildContext context) {
-    return AppBar(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      centerTitle: true,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new,
-            color: Color(0xFF0F172A), size: 18),
-        onPressed: () => Navigator.pop(context),
-      ),
-      title: Text("CENTRO DE CONTROL",
-          style: GoogleFonts.inter(
-              color: const Color(0xFF0F172A),
-              fontWeight: FontWeight.w800,
-              fontSize: 12,
-              letterSpacing: 2.0)),
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: opciones.entries.map((entry) {
+                final bool esSeleccionado = _rangoSeleccionado == entry.key;
+                return ListTile(
+                  leading: Icon(Icons.access_time_filled_rounded,
+                      color: esSeleccionado
+                          ? const Color(0xFF3B82F6)
+                          : const Color(0xFF64748B)),
+                  title: Text(entry.value,
+                      style: GoogleFonts.inter(
+                          fontWeight: esSeleccionado
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: esSeleccionado
+                              ? const Color(0xFF1E293B)
+                              : const Color(0xFF475569))),
+                  trailing: esSeleccionado
+                      ? const Icon(Icons.check_circle_rounded,
+                          color: Color(0xFF3B82F6))
+                      : null,
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() {
+                      _rangoSeleccionado = entry.key;
+                      _loadData();
+                    });
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+        );
+      },
     );
   }
-
-  // Header: El número grande (Código de Lote) y el nombre del producto
 
   Widget _buildHeaderInfo(Lote lote) {
+    return Align(
+      alignment:
+          Alignment.centerLeft, // 📍 Alineación a la izquierda estilo nativo
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Temperatura",
+            style: GoogleFonts.inter(
+                fontSize: 32, // 📍 Ajustado para una jerarquía visual premium
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF1E293B),
+                letterSpacing: -0.8),
+          ),
+          const SizedBox(
+              height: 4), // 📍 Distancia sutil y elegante con el subtexto
+          Text(
+            _rangoSeleccionado == "24h"
+                ? "Últimas 24 horas"
+                : "Historial condicionado por filtro",
+            style: GoogleFonts.inter(
+                color: const Color(0xFF94A3B8),
+                fontSize: 13,
+                fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNewMetricsGrid(Lote lote, List<Telemetria> telemetrias,
+      double? tempActual, double? tempPromedio) {
+    String estadoVisual = "Sin Datos";
+    Color fondoTarjetaActual = const Color(0xFF3B82F6);
+
+    if (telemetrias.isNotEmpty) {
+      final String estadoServidor = lote.estadoActual.toUpperCase();
+      if (estadoServidor == "OPTIMO" || estadoServidor == "ESPERANDO") {
+        estadoVisual = "Óptimo";
+        fondoTarjetaActual = const Color(0xFF10B981);
+      } else if (estadoServidor == "ALERTA") {
+        estadoVisual = "Alerta";
+        fondoTarjetaActual = const Color(0xFFF59E0B);
+      } else if (estadoServidor == "CRITICO") {
+        estadoVisual = "Crítico";
+        fondoTarjetaActual = const Color(0xFFEF4444);
+      }
+    }
+
     return Column(
       children: [
-        Text(lote.codigoLote,
-            style: GoogleFonts.robotoMono(
-                fontSize: 34,
-                fontWeight: FontWeight.w900,
-                color: const Color(0xFF1E293B),
-                letterSpacing: -1)),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-          decoration: BoxDecoration(
-              color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10)),
-          child: Text(lote.producto.toUpperCase(),
-              style: GoogleFonts.inter(
-                  color: const Color(0xFF2563EB),
-                  letterSpacing: 1.5,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900)),
+        Row(
+          children: [
+            // ==========================================
+            // CUADRO ACTUAL (COLOR DINÁMICO)
+            // ==========================================
+            Expanded(
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.43,
+                height:
+                    112, // 📍 SE REDUJO DE 133 A 112 PARA QUITAR EL AIRE VERTICAL
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 12), // 📍 PADDING COMPACTO
+                decoration: BoxDecoration(
+                    color: fondoTarjetaActual,
+                    borderRadius: BorderRadius.circular(20)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment
+                      .spaceBetween, // 📍 DISTRIBUYE MEJOR EL ESPACIO INTERNO
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.thermostat,
+                            color: Colors.white70, size: 16),
+                        const SizedBox(width: 4),
+                        Text("Actual",
+                            style: GoogleFonts.inter(
+                                color: Colors.white70,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                    RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: tempActual != null
+                                ? tempActual.toStringAsFixed(1)
+                                : "N/A",
+                            style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 28,
+                                // 📍 CAMBIADO: Antes FontWeight.bold (w700). w600 es semi-bold, más fino y estético.
+                                fontWeight: FontWeight.w600),
+                          ),
+                          TextSpan(
+                            text: tempActual != null ? " °C" : "",
+                            style: GoogleFonts.inter(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 13,
+                                // 📍 LIGERAMENTE MÁS DELGADO: Pasó de w500 a w400 para acompañar la armonía del número
+                                fontWeight: FontWeight.w400),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 3),
+                      decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Text(
+                        estadoVisual.toUpperCase(),
+                        style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            // ==========================================
+            // CUADRO PROMEDIO
+            // ==========================================
+            Expanded(
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.43,
+                height:
+                    112, // 📍 SE REDUJO DE 131 A 112 PARA IR EN PERFECTA SIMETRÍA
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 12), // 📍 PADDING COMPACTO
+                decoration: BoxDecoration(
+                    color: const Color.fromARGB(255, 255, 255, 255),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withOpacity(0.02),
+                          blurRadius: 15,
+                          offset: const Offset(0, 8))
+                    ]),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment
+                      .spaceBetween, // 📍 DISTRIBUYE MEJOR EL ESPACIO INTERNO
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.analytics_outlined,
+                            color: Color(0xFF94A3B8), size: 16),
+                        const SizedBox(width: 6),
+                        Text("Promedio",
+                            style: GoogleFonts.inter(
+                                color: const Color(0xFF94A3B8),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                    RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: tempPromedio != null
+                                ? tempPromedio.toStringAsFixed(1)
+                                : "N/A",
+                            style: GoogleFonts.inter(
+                                color: const Color(0xFF1E293B),
+                                fontSize: 28, // 📍 SE AJUSTÓ LIGERAMENTE A 28
+                                fontWeight: FontWeight.bold),
+                          ),
+                          TextSpan(
+                            text: tempPromedio != null ? " °C" : "",
+                            style: GoogleFonts.inter(
+                                color: const Color(0xFF64748B),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                        _rangoSeleccionado == "24h"
+                            ? "24h promedio"
+                            : "Filtro: $_rangoSeleccionado",
+                        style: GoogleFonts.inter(
+                            color: const Color(0xFF94A3B8),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
+        // 📍 SE ELIMINÓ EL MARGIN SIZEDBOX Y LA FILA DE LOS LÍMITES VIEJOS AQUÍ
       ],
     );
   }
 
-  // Fila de Tarjetas: Muestra los límites y el estado actual (CONGELADO, etc.)
+  Widget _buildTechnicalDataBox(Lote lote) {
+    // 1. OBTENER MIN Y MAX PUROS DEL BACKEND
+    final double oMin = lote.tempMinIdeal;
+    final double oMax = lote.tempMaxIdeal;
 
-  Widget _buildMetricsRow(Lote lote) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _metricBox(
-            "LÍMITE MIN", "${lote.tempMinIdeal}°C", const Color(0xFF3B82F6)),
-        _metricBox("ESTADO", lote.estadoActual, lote.colorEstado),
-        _metricBox(
-            "LÍMITE MAX", "${lote.tempMaxIdeal}°C", const Color(0xFFEF4444)),
-      ],
-    );
-  }
+    // 2. ORDENAR RANGO ÓPTIMO
+    final double optMin = min(oMin, oMax);
+    final double optMax = max(oMin, oMax);
 
-  // Estilo de cada cuadrito de métrica
+    // 3. CALCULAR EXTREMOS DE ADVERTENCIA INTELIGENTE (-3 y +3)
+    final double alertInf1 = optMin - 3;
+    final double alertInf2 = optMin;
+    final double advMin = min(alertInf1, alertInf2);
 
-  Widget _metricBox(String title, String val, Color color) {
+    final double alertSup1 = optMax;
+    final double alertSup2 = optMax + 3;
+    final double advMax2 = max(alertSup1, alertSup2);
+
     return Container(
-      width: 105,
-      padding: const EdgeInsets.symmetric(vertical: 18),
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 25),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(25),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 10,
-              offset: const Offset(0, 5))
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 20,
+              offset: const Offset(0, 10))
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              style: GoogleFonts.inter(
-                  fontSize: 8,
-                  color: const Color(0xFF94A3B8),
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.5)),
-          const SizedBox(height: 8),
-          Text(val,
-              style: GoogleFonts.orbitron(
-                  fontSize: 12, color: color, fontWeight: FontWeight.bold)),
+          Text(
+            "Datos técnicos",
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF1E293B),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // FILA ÓPTIMO
+          _buildTechRow(
+              "Óptimo",
+              "[ ${optMin.toStringAsFixed(0)}°C a ${optMax.toStringAsFixed(0)}°C ]",
+              const Color(0xFF10B981)),
+          const Divider(height: 20, color: Color(0xFFF1F5F9), thickness: 1),
+
+          // FILA ADVERTENCIA (Sintetizada bajo el mismo modelo de Crítico)
+          _buildTechRow(
+              "Advertencia",
+              "[ < ${advMin.toStringAsFixed(0)}°C ]  o  [ > ${advMax2.toStringAsFixed(0)}°C ]",
+              const Color(0xFFF59E0B)),
+          const Divider(height: 20, color: Color(0xFFF1F5F9), thickness: 1),
+
+          // FILA CRÍTICO
+          _buildTechRow(
+              "Crítico",
+              "[ (+) ${advMin.toStringAsFixed(0)}°C ]  o  [ (+) ${advMax2.toStringAsFixed(0)}°C ]",
+              const Color(0xFFEF4444)),
         ],
       ),
     );
   }
 
-  // Lista de Trazabilidad: El historial que aparece debajo del gráfico
+  Widget _buildTechRow(String label, String value, Color indicatorColor) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          margin: const EdgeInsets.only(top: 4, right: 10),
+          decoration:
+              BoxDecoration(color: indicatorColor, shape: BoxShape.circle),
+        ),
+        SizedBox(
+          width: 85,
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF64748B)),
+          ),
+        ),
+        Expanded(
+          // 📍 EL CAMBIO ÚNICO: Alineamos el contenido al extremo derecho del espacio disponible
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              value,
+              // Usamos textAlign para asegurar un comportamiento impecable si el texto salta de línea
+              textAlign: TextAlign.end,
+              style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF1E293B)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-  Widget _buildTimelineList(Lote lote) {
-    final reversedList =
-        lote.telemetrias.reversed.toList(); // Lo último primero
+  Widget _buildTimelineList(List<Telemetria> telemetrias, Lote lote) {
+    if (telemetrias.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          children: [
+            Icon(Icons.sensors_off_rounded,
+                color: Colors.grey.withOpacity(0.3), size: 40),
+            const SizedBox(height: 12),
+            Text("ESPERANDO SEÑAL DEL SENSOR",
+                style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF94A3B8),
+                    letterSpacing: 1)),
+          ],
+        ),
+      );
+    }
+
+    final reversedList = telemetrias.reversed.toList();
 
     return ListView.builder(
       shrinkWrap: true,
-      physics:
-          const NeverScrollableScrollPhysics(), // El scroll lo maneja el padre
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: reversedList.length,
       itemBuilder: (context, index) {
         final t = reversedList[index];
-
-        // Lógica de Alerta: Decide si el item se ve rojo o verde
         final bool alert = t.temperatura > lote.tempMaxIdeal ||
             t.temperatura < lote.tempMinIdeal;
 
@@ -478,22 +841,14 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(18),
-
-            // === AQUÍ ESTÁ EL CAMBIO SOLICITADO ===
-            // Eliminamos el 'null' y aplicamos borde siempre, cambiando el color
             border: Border.all(
-              color: alert
-                  // Color para FUERA DE RANGO (Rojo suave)
-                  ? const Color(0xFFFCA5A5).withValues(alpha: 0.5)
-                  // Color para SISTEMA ÓPTIMO (Verde suave, idéntico al ícono)
-                  : const Color(0xFF10B981).withValues(alpha: 0.3),
-              width: 1,
-            ),
-            // =====================================
-
+                color: alert
+                    ? const Color(0xFFFCA5A5).withOpacity(0.5)
+                    : const Color(0xFF10B981).withOpacity(0.3),
+                width: 1),
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.02),
+                  color: Colors.black.withOpacity(0.02),
                   blurRadius: 10,
                   offset: const Offset(0, 4))
             ],
@@ -513,7 +868,6 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
                             color: const Color(0xFF0F172A))),
                     const SizedBox(height: 4),
                     Text(DateFormat('HH:mm:ss').format(t.fechaRegistro),
-                        overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
                             fontSize: 10,
                             color: const Color(0xFF94A3B8),
@@ -521,7 +875,6 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
               _buildStatusLabel(alert, t.humedad),
             ],
           ),
@@ -530,14 +883,12 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
     );
   }
 
-  // Iconos Circulares de la lista (Check verde o Alerta roja)
-
   Widget _buildAlertIcon(bool alert) {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
           color: (alert ? const Color(0xFFEF4444) : const Color(0xFF10B981))
-              .withValues(alpha: 0.1),
+              .withOpacity(0.1),
           shape: BoxShape.circle),
       child: Icon(alert ? Icons.warning_rounded : Icons.verified_rounded,
           color: alert ? const Color(0xFFEF4444) : const Color(0xFF10B981),
@@ -545,34 +896,41 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
     );
   }
 
-  // Etiquetas de Humedad y Texto de Estado (SISTEMA ÓPTIMO, etc.)
-
   Widget _buildStatusLabel(bool alert, double humidity) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize
+          .min, // 📍 Asegura que la columna ocupe solo el espacio necesario
       children: [
-        Text("${humidity.toInt()}% HR",
-            style: GoogleFonts.inter(
-                color: const Color(0xFF64748B),
-                fontWeight: FontWeight.w800,
-                fontSize: 11)),
-        Text(alert ? "FUERA DE RANGO" : "SISTEMA ÓPTIMO",
-            style: TextStyle(
-                color:
-                    alert ? const Color(0xFFEF4444) : const Color(0xFF10B981),
-                fontSize: 8,
-                fontWeight: FontWeight.w900)),
+        Text(
+          "${humidity.toInt()}% HR",
+          style: GoogleFonts.inter(
+              color: const Color(0xFF64748B),
+              fontWeight: FontWeight.w800,
+              fontSize: 11),
+        ),
+
+        // 📍 EL CAMBIO CLAVE: Añade este espacio para separar los textos verticalmente
+        const SizedBox(height: 3),
+
+        Text(
+          alert ? "FUERA DE RANGO" : "SISTEMA ÓPTIMO",
+          style: TextStyle(
+              color: alert ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+              fontSize: 8,
+              fontWeight: FontWeight.w900,
+              letterSpacing:
+                  0.3), // 📍 Opcional: un toque sutil de espacio entre letras para legibilidad
+        ),
       ],
     );
   }
 
-  // PANTALLA COMPLETA DEL GRÁFICO (MODAL)
-
-  void _showFullScreenChart(BuildContext context, Lote lote) {
+  void _showFullScreenChart(
+      BuildContext context, List<Telemetria> telemetrias, Lote lote) {
     Navigator.of(context).push(MaterialPageRoute(
       builder: (context) => Scaffold(
         backgroundColor: Colors.white,
-
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
@@ -586,15 +944,10 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
               icon: const Icon(Icons.close, color: Colors.black),
               onPressed: () => Navigator.pop(context)),
         ),
-
-        // Reutiliza el mismo contenedor pero con isFullScreen: true
-
-        body: _buildChartContainer(lote, isFullScreen: true),
+        body: _buildChartContainer(telemetrias, lote, isFullScreen: true),
       ),
     ));
   }
-
-  // Títulos de Sección con Icono
 
   Widget _buildSectionTitle(String text) {
     return Padding(
@@ -614,8 +967,6 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
       ),
     );
   }
-
-  // Pantalla de Error (Si falla el internet o el servidor)
 
   Widget _buildErrorState(String error) {
     return Center(

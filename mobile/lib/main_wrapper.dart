@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'screens/monitor_screen.dart';
 import 'screens/analytics_screen.dart';
 
 class MainWrapper extends StatefulWidget {
   final String token;
-  final String role; // <--- Declarada correctamente
+  final String role;
+  final String userName;
 
-  // CORRECCIÓN DEL CONSTRUCTOR:
   const MainWrapper(
       {super.key,
       required this.token,
-      required this.role // <--- Añadida como requerida
-      });
+      required this.role,
+      required this.userName});
 
   @override
   State<MainWrapper> createState() => _MainWrapperState();
@@ -20,119 +19,150 @@ class MainWrapper extends StatefulWidget {
 
 class _MainWrapperState extends State<MainWrapper> {
   int _currentIndex = 0;
-
-  final GlobalKey<CurvedNavigationBarState> _bottomNavigationKey = GlobalKey();
-
-  // Lista de pantallas inyectadas con el token de sesión
-
   late List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
-
     _screens = [
-      // 1. Monitor: Recibe Token y Rol (Para el botón de Google Drive)
-      MonitorScreen(token: widget.token, role: widget.role),
-
-      // 2. Analytics: Recibe Token (Para sus peticiones HTTP)
+      MonitorScreen(
+          token: widget.token, role: widget.role, userName: widget.userName),
       AnalyticsScreen(token: widget.token),
-
-      // 3. Historial (Placeholder funcional)
-      const _PlaceholderScreen(
-        title: "HISTORIAL DE ALERTAS",
-        icon: Icons.history_edu_rounded,
-      ),
-
-      // 4. Soporte (Placeholder funcional)
-      const _PlaceholderScreen(
-        title: "SOPORTE TÉCNICO",
-        icon: Icons.support_agent_rounded,
-      ),
+      const Center(child: Text("Centro de Alertas")),
+      const Center(child: Text("Ajustes de Cuenta")),
     ];
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBody: true, // Crucial para el efecto visual del CurvedNavigationBar
-
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        child: _screens[_currentIndex],
-      ),
-
-      bottomNavigationBar: CurvedNavigationBar(
-        key: _bottomNavigationKey,
-
-        index: 0,
-
-        height: 65.0,
-
-        items: const <Widget>[
-          Icon(Icons.dashboard_rounded, size: 28, color: Colors.white),
-          Icon(Icons.bar_chart_rounded, size: 28, color: Colors.white),
-          Icon(
-            Icons.notifications_active_rounded,
-            size: 28,
-            color: Colors.white,
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: _screens[_currentIndex],
+      bottomNavigationBar: Container(
+        height: 68, // Mantenemos tu medida
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(
+            top: BorderSide(color: Colors.grey.shade200, width: 1),
           ),
-          Icon(Icons.settings_suggest_rounded, size: 28, color: Colors.white),
-        ],
-
-        color: const Color(0xFF1E293B), // Azul Industrial profundo
-
-        buttonBackgroundColor: const Color(0xFF2E6CA4), // Azul NutriTrack
-
-        backgroundColor: Colors.transparent,
-
-        animationCurve: Curves.easeInOutCubic,
-
-        animationDuration: const Duration(milliseconds: 500),
-
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-      ),
-    );
-  }
-}
-
-class _PlaceholderScreen extends StatelessWidget {
-  final String title;
-
-  final IconData icon;
-
-  const _PlaceholderScreen({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFFF8FAFC),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 80, color: Colors.grey[300]),
-            const SizedBox(height: 20),
-            Text(
-              title,
-              style: const TextStyle(
-                color: Color(0xFF1E293B),
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-                letterSpacing: 1.1,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              "Módulo en fase de integración operativa",
-              style: TextStyle(color: Colors.grey, fontSize: 13),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
             ),
           ],
         ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            // Todos los items ahora usan tus PNGs personalizados
+            _buildPNGNavItem(0, "assets/icons/Inventario.png", "Inventario"),
+            _buildPNGNavItem(1, "assets/icons/Estadisticas.png", "Recursos"),
+            _buildPNGNavItem(2, "assets/icons/notificaciones.png", "Alertas"),
+            _buildPNGNavItem(3, "assets/icons/ajustamiento.png", "Ajustes"),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Lógica unificada para todos tus PNGs
+  // Lógica unificada para todos tus PNGs sin la barrita azul
+  Widget _buildPNGNavItem(int index, String assetPath, String label) {
+    final bool isActive = _currentIndex == index;
+    final Color activeColor = const Color.fromARGB(255, 0, 89, 255);
+    final Color inactiveColor = const Color(0xFF94A3B8);
+    final Color currentColor = isActive ? activeColor : inactiveColor;
+
+    // CONTROL DE GROSOR: Ajusta este número (0.5 es bastante fuerte)
+    const double thickness = 0.5;
+
+    return GestureDetector(
+      onTap: () => setState(() => _currentIndex = index),
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              // --- CAPAS DE EXPANSIÓN EN CRUZ ---
+              Transform.translate(
+                  offset: const Offset(thickness, 0),
+                  child: Image.asset(assetPath,
+                      width: 22.6,
+                      height: 22.6,
+                      color: currentColor.withOpacity(0.35))),
+              Transform.translate(
+                  offset: const Offset(-thickness, 0),
+                  child: Image.asset(assetPath,
+                      width: 22.6,
+                      height: 22.6,
+                      color: currentColor.withOpacity(0.35))),
+              Transform.translate(
+                  offset: const Offset(0, thickness),
+                  child: Image.asset(assetPath,
+                      width: 22.6,
+                      height: 22.6,
+                      color: currentColor.withOpacity(0.35))),
+              Transform.translate(
+                  offset: const Offset(0, -thickness),
+                  child: Image.asset(assetPath,
+                      width: 22.6,
+                      height: 22.6,
+                      color: currentColor.withOpacity(0.35))),
+
+              // --- CAPAS DE EXPANSIÓN EN DIAGONAL ---
+              Transform.translate(
+                  offset: const Offset(thickness, thickness),
+                  child: Image.asset(assetPath,
+                      width: 22.6,
+                      height: 22.6,
+                      color: currentColor.withOpacity(0.35))),
+              Transform.translate(
+                  offset: const Offset(-thickness, -thickness),
+                  child: Image.asset(assetPath,
+                      width: 22.6,
+                      height: 22.6,
+                      color: currentColor.withOpacity(0.35))),
+              Transform.translate(
+                  offset: const Offset(thickness, -thickness),
+                  child: Image.asset(assetPath,
+                      width: 22.6,
+                      height: 22.6,
+                      color: currentColor.withOpacity(0.35))),
+              Transform.translate(
+                  offset: const Offset(-thickness, thickness),
+                  child: Image.asset(assetPath,
+                      width: 22.6,
+                      height: 22.6,
+                      color: currentColor.withOpacity(0.35))),
+
+              // --- ICONO ORIGINAL (Centro) ---
+              Image.asset(
+                assetPath,
+                width: 22.6,
+                height: 22.6,
+                color: currentColor,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.high,
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 9.5, // <--- Este es el tamaño que pediste mantener
+              fontWeight: isActive
+                  ? FontWeight.w900
+                  : FontWeight.w700, // <--- Volvemos al peso original
+              color: currentColor,
+              // Eliminamos el letterSpacing para que no se estiren las palabras
+            ),
+          ),
+        ],
       ),
     );
   }

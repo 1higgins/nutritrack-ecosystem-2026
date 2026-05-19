@@ -113,6 +113,8 @@ class LoteRead(LoteBase):
     entregado: bool
     creador_id: int
     custodio_id: Optional[int] = None # Para saber qué OPT lo tiene vinculado
+    custodio_username: Optional[str] = None
+    ultima_temperatura: Optional[float] = None
     model_config = ConfigDict(from_attributes=True)
 
 # --- NUEVO: Esquema para el 'Handshake' de seguridad del OPT ---
@@ -129,3 +131,30 @@ class LoteEntregar(BaseModel):
     nombre_opa: str       # Validación del origen
     codigo_lote: str      # Validación del activo
     password_lote: str    # Validación de seguridad
+
+# ==========================================================================
+# --- DETALLE DE AUDITORÍA TÉRMICA (NUEVO) ---
+# ==========================================================================
+
+class LoteAuditoriaDetail(BaseModel):
+    """
+    Contrato de datos optimizado para la pantalla lote_detail_screen.dart.
+    Entrega métricas digeridas y la telemetría necesaria para la gráfica propia.
+    """
+    id: int
+    codigo_lote: str = Field(..., description="Código único del lote")
+    producto: str = Field(..., description="Nombre del producto")
+    temp_min_ideal: float
+    temp_max_ideal: float
+    estado_actual: str
+    entregado: bool
+    custodio_username: Optional[str] = None
+    
+    # Métricas calculadas en Backend
+    temperatura_actual: Optional[float] = None
+    temperatura_promedio: Optional[float] = None
+    
+    # Dataset filtrado cronológicamente para la gráfica del Mobile
+    historial_lecturas: List[TelemetriaRead] = []
+
+    model_config = ConfigDict(from_attributes=True)

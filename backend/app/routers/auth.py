@@ -13,7 +13,7 @@ router = APIRouter(tags=["Seguridad"])
 # --- CONFIGURACIÓN DE SEGURIDAD INDUSTRIAL ---
 SECRET_KEY = "NutriTrack_Secret_Key_2026_Secure" 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 120
+ACCESS_TOKEN_EXPIRE_MINUTES = 240
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
