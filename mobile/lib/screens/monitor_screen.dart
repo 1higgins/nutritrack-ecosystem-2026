@@ -173,7 +173,7 @@ class _MonitorScreenState extends State<MonitorScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 249, 249, 249),
+      backgroundColor: const Color.fromARGB(255, 248, 248, 248),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
 
       // 🟢 MODIFICACIÓN AQUÍ: Si es true se dibuja, si es false se oculta (null)
@@ -865,16 +865,20 @@ class _MonitorScreenState extends State<MonitorScreen>
               color: Color(0xFFF8FAFC),
               borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
             ),
-            padding: const EdgeInsets.all(24),
+            // 📍 CAMBIO 1: Separamos el padding. Mantenemos 30 a los lados y 50 abajo,
+            // pero reducimos el 'top' a 16 (o 12) para que la rayita suba casi al borde.
+            padding:
+                const EdgeInsets.only(left: 30, right: 30, top: 30, bottom: 40),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Center(
                   child: Container(
-                    width: 40,
+                    width: 50,
                     height: 4,
-                    margin: const EdgeInsets.only(bottom: 20),
+                    // Aquí mantienes tu margen inferior actual de 7 respecto a su propio contenedor
+                    margin: const EdgeInsets.only(bottom: 7),
                     decoration: BoxDecoration(
                       color: Colors.grey[300],
                       borderRadius: BorderRadius.circular(10),
@@ -882,32 +886,45 @@ class _MonitorScreenState extends State<MonitorScreen>
                   ),
                 ),
 
+                const SizedBox(height: 20),
+
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  // 1. Cambiamos a 'start' para controlar la distribución nosotros mismos
+                  mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     Text(
-                      "FILTROS DE AUDITORÍA",
-                      style: GoogleFonts.orbitron(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                      "Filtros avanzados",
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 25,
                         color: const Color(0xFF0F172A),
                       ),
                     ),
-                    TextButton.icon(
-                      onPressed: () {
-                        setModalState(() {
-                          tempRangoFecha = "24h";
-                          tempUserController.clear();
-                        });
-                      },
-                      icon: const Icon(Icons.restart_alt_rounded,
-                          size: 16, color: Color(0xFF3B82F6)),
-                      label: Text(
-                        "Limpiar",
-                        style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF3B82F6)),
+
+                    // 2. El Spacer empuja todo lo que esté a su derecha hasta el fondo
+                    const Spacer(),
+
+                    // 3. Envolvemos el botón en un Padding para controlar su distancia exacta del borde
+                    Padding(
+                      padding: const EdgeInsets.only(
+                          right:
+                              0), // 📍 MODIFICA ESTE NÚMERO: A mayor número, más se mueve a la izquierda. Con '0' queda pegado totalmente a la derecha.
+                      child: TextButton.icon(
+                        onPressed: () {
+                          setModalState(() {
+                            tempRangoFecha = "24h";
+                            tempUserController.clear();
+                          });
+                        },
+                        icon: const Icon(Icons.restart_alt_rounded,
+                            size: 30, color: Color(0xFF3B82F6)),
+                        label: Text(
+                          "(R)",
+                          style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF3B82F6)),
+                        ),
                       ),
                     ),
                   ],
@@ -921,12 +938,12 @@ class _MonitorScreenState extends State<MonitorScreen>
                   Text(
                     "FILTRAR POR OPERARIO DE ALMACÉN (OPA)",
                     style: GoogleFonts.inter(
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: FontWeight.w800,
                         color: const Color(0xFF64748B),
                         letterSpacing: 0.5),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 20),
                   _buildModernField(
                     controller: tempUserController,
                     label: "Escribe el username exacto del OPA",
@@ -939,12 +956,12 @@ class _MonitorScreenState extends State<MonitorScreen>
                 Text(
                   "RANGO DE TIEMPO (FECHA DE CREACIÓN)",
                   style: GoogleFonts.inter(
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: FontWeight.w800,
                       color: const Color(0xFF64748B),
                       letterSpacing: 0.5),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 19),
 
                 GridView.builder(
                   shrinkWrap: true,
@@ -991,15 +1008,16 @@ class _MonitorScreenState extends State<MonitorScreen>
                     );
                   },
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 20),
 
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                          side: const BorderSide(color: Color(0xFFE2E8F0)),
+                          padding: const EdgeInsets.symmetric(vertical: 19),
+                          side: const BorderSide(
+                              color: Color.fromARGB(255, 255, 0, 0)),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14)),
                         ),
@@ -1008,7 +1026,7 @@ class _MonitorScreenState extends State<MonitorScreen>
                           "CANCELAR",
                           style: GoogleFonts.inter(
                               fontWeight: FontWeight.bold,
-                              color: const Color(0xFF64748B),
+                              color: const Color.fromARGB(255, 255, 0, 0),
                               fontSize: 13),
                         ),
                       ),
@@ -1018,7 +1036,7 @@ class _MonitorScreenState extends State<MonitorScreen>
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF0F172A),
-                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          padding: const EdgeInsets.symmetric(vertical: 19),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14)),
                         ),
@@ -1674,20 +1692,20 @@ class _MonitorScreenState extends State<MonitorScreen>
       builder: (BuildContext bc) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 31),
             child: Column(
               mainAxisSize: MainAxisSize.min, // Ajuste compacto al contenido
               children: [
                 // Indicador visual superior (Gris Slate sutil)
                 Container(
-                  width: 40,
+                  width: 50,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE2E8F0),
+                    color: const Color.fromARGB(255, 223, 223, 223),
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 35),
 
                 // Mensaje de advertencia
                 Text(
@@ -1696,18 +1714,21 @@ class _MonitorScreenState extends State<MonitorScreen>
                   style: GoogleFonts.inter(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF0F172A),
+                    color: const Color.fromARGB(255, 80, 80, 80),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 35),
 
                 // BOTÓN DE ACCIÓN CRÍTICA (Rojo Premium)
                 SizedBox(
                   width: double.infinity,
-                  height: 52,
+                  height: 30,
                   child: TextButton(
                     style: TextButton.styleFrom(
                       foregroundColor: const Color(0xFFEF4444),
+                      padding: EdgeInsets
+                          .zero, // 📍 ELIMINA el espacio interno del texto
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -1741,28 +1762,33 @@ class _MonitorScreenState extends State<MonitorScreen>
                   ),
                 ),
 
+                const SizedBox(height: 15),
                 // LÍNEA DIVISORA COMPACTA Y CONTROLADA
                 const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+                  padding: EdgeInsets.symmetric(vertical: 6, horizontal: 20),
                   child: Divider(
                     color: Color(0xFFF1F5F9), // Slate 100 muy tenue
-                    thickness: 1.5,
+                    thickness: 2.0,
                   ),
                 ),
+
+                const SizedBox(height: 15),
 
                 // BOTÓN DE CANCELACIÓN
                 SizedBox(
                   width: double.infinity,
-                  height: 52,
+                  height: 26,
                   child: TextButton(
                     style: TextButton.styleFrom(
                       foregroundColor: const Color(0xFF64748B),
+                      // 📍 CAMBIO 4: Agregamos esto para romper el margen del botón y que obedezca el centrado
+                      padding: EdgeInsets.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    onPressed: () =>
-                        Navigator.pop(context), // Cierra solo el bottomsheet
+                    onPressed: () => Navigator.pop(context),
                     child: Text(
                       "Cancelar",
                       style: GoogleFonts.inter(

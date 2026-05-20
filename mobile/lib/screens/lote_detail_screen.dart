@@ -81,7 +81,7 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 249, 249, 249),
+      backgroundColor: const Color.fromARGB(255, 248, 248, 248),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _loteFuture,
         builder: (context, snapshot) {
@@ -247,25 +247,66 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
 
   Widget _buildChartContainer(List<Telemetria> telemetrias, Lote lote,
       {required bool isFullScreen}) {
+    // ==========================================================================
+    // 📍 SOLUCIÓN DE CENTRADO ABSOLUTO CUANDO NO HAY TELEMETRÍA
+    // ==========================================================================
     if (telemetrias.isEmpty) {
-      return Container(
-        height: 260,
-        alignment: Alignment.center,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.sensors_off_rounded,
-                color: Color(0xFF94A3B8), size: 36),
-            const SizedBox(height: 8),
-            Text(
-              'No hay datos ingresados en este lote.',
-              style: GoogleFonts.inter(
-                  color: const Color(0xFF94A3B8), fontSize: 12),
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          // Calculamos dinámicamente un tamaño generoso para que el Center actúe libremente
+          final double disponibleHeight =
+              MediaQuery.of(context).size.height * 0.45;
+
+          return Container(
+            height: disponibleHeight,
+            width: double.infinity,
+            alignment:
+                Alignment.center, // Fuerza el eje X e Y al centro absoluto
+            child: Column(
+              mainAxisAlignment:
+                  MainAxisAlignment.center, // Centra el contenido internamente
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Envolvemos el icono en un contenedor con opacidad premium idéntico a tu AppBar
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF94A3B8).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.sensors_off_rounded,
+                    color: Color(0xFF94A3B8),
+                    size: 42, // Un toque más imponente y nítido
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'No hay datos ingresados en este lote',
+                  style: GoogleFonts.inter(
+                    color: const Color(
+                        0xFF64748B), // Slate 600 para mejor contraste y lectura
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Deslice hacia abajo para actualizar',
+                  style: GoogleFonts.inter(
+                    color:
+                        const Color(0xFF94A3B8), // Subtexto de guía logística
+                    fontSize: 11,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       );
     }
+    // ... Todo el resto del código del gráfico hacia abajo permanece exactamente igual.
 
     final allTemps = telemetrias.map((t) => t.temperatura).toList();
     final double rawMin = allTemps.reduce(min) - 2;
@@ -476,6 +517,16 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
                           color: Color(0xFF3B82F6))
                       : null,
                   onTap: () {
+                    // ==========================================================================
+                    // 📍 VALIDACIÓN CRÍTICA ANTI-RELOAD INNECESARIO
+                    // ==========================================================================
+                    if (esSeleccionado) {
+                      // Si eligen lo que ya está activo, cerramos el menú y no hacemos nada más
+                      Navigator.pop(context);
+                      return;
+                    }
+
+                    // Si es una opción nueva, ejecutamos la lógica normal de actualización
                     Navigator.pop(context);
                     setState(() {
                       _rangoSeleccionado = entry.key;
@@ -492,26 +543,35 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
   }
 
   Widget _buildHeaderInfo(Lote lote) {
+    // 📍 Traducimos el código técnico al texto legible para el operario
+    final opcionesTexto = {
+      "24h": "Últimas 24 horas",
+      "3dias": "Últimos 3 días",
+      "semana": "Última semana",
+      "mes": "Último mes",
+      "todo": "Todo el historial"
+    };
+
+    final String subtituloFiltro =
+        opcionesTexto[_rangoSeleccionado] ?? "Historial condicionado";
+
     return Align(
-      alignment:
-          Alignment.centerLeft, // 📍 Alineación a la izquierda estilo nativo
+      alignment: Alignment.centerLeft,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             "Temperatura",
             style: GoogleFonts.inter(
-                fontSize: 32, // 📍 Ajustado para una jerarquía visual premium
+                fontSize: 32,
                 fontWeight: FontWeight.w700,
                 color: const Color(0xFF1E293B),
                 letterSpacing: -0.8),
           ),
-          const SizedBox(
-              height: 4), // 📍 Distancia sutil y elegante con el subtexto
+          const SizedBox(height: 4),
           Text(
-            _rangoSeleccionado == "24h"
-                ? "Últimas 24 horas"
-                : "Historial condicionado por filtro",
+            // 📍 Muestra dinámicamente el filtro exacto seleccionado
+            "$subtituloFiltro",
             style: GoogleFonts.inter(
                 color: const Color(0xFF94A3B8),
                 fontSize: 13,
@@ -951,7 +1011,7 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
 
   Widget _buildSectionTitle(String text) {
     return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 16),
+      padding: const EdgeInsets.only(left: 4, bottom: 21),
       child: Row(
         children: [
           const Icon(Icons.history_toggle_off,

@@ -9,9 +9,8 @@ class AnalyticsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(
-        0xFFF8FAFC,
-      ), // Fondo gris muy claro profesional
+      backgroundColor: const Color.fromARGB(
+          255, 249, 249, 249), // Fondo gris muy claro profesional
       appBar: AppBar(
         title: Text(
           "INTELIGENCIA DE DATOS",
