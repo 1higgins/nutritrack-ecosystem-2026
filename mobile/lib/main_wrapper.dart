@@ -23,7 +23,7 @@ class _MainWrapperState extends State<MainWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    // 👇 Mudar la lista aquí reconstruye las pantallas dinámicamente con datos reales sin congelar nulos
+    // 🌟 SE LIMPIÓ LA LISTA: Ahora solo existen las dos pantallas operativas principales
     final List<Widget> screens = [
       MonitorScreen(
         token: widget.token,
@@ -34,15 +34,13 @@ class _MainWrapperState extends State<MainWrapper> {
         token: widget.token,
         role: widget.role,
       ),
-      const Center(child: Text("Centro de Alertas")),
-      const Center(child: Text("Ajustes de Cuenta")),
     ];
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: screens[_currentIndex],
       bottomNavigationBar: Container(
-        height: 68, // Mantenemos tu medida
+        height: 68,
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border(
@@ -59,25 +57,23 @@ class _MainWrapperState extends State<MainWrapper> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            // Todos los items ahora usan tus PNGs personalizados
+            // 🌟 SOLUCIÓN: Quitamos los NavItems de Alertas y Ajustes
+            // Ahora el espacio se reparte de forma limpia y holgada entre estos dos.
             _buildPNGNavItem(0, "assets/icons/Inventario.png", "Inventario"),
             _buildPNGNavItem(1, "assets/icons/Estadisticas.png", "Recursos"),
-            _buildPNGNavItem(2, "assets/icons/notificaciones.png", "Alertas"),
-            _buildPNGNavItem(3, "assets/icons/ajustamiento.png", "Ajustes"),
           ],
         ),
       ),
     );
   }
 
-  // Lógica unificada para todos tus PNGs sin la barrita azul
+  // Tu constructor de items optimizado mediante capas de expansión (Efecto Outline)
   Widget _buildPNGNavItem(int index, String assetPath, String label) {
     final bool isActive = _currentIndex == index;
     final Color activeColor = const Color.fromARGB(255, 0, 89, 255);
     final Color inactiveColor = const Color(0xFF94A3B8);
     final Color currentColor = isActive ? activeColor : inactiveColor;
 
-    // CONTROL DE GROSOR: Ajusta este número (0.5 es bastante fuerte)
     const double thickness = 0.5;
 
     return GestureDetector(
@@ -89,7 +85,7 @@ class _MainWrapperState extends State<MainWrapper> {
           Stack(
             alignment: Alignment.center,
             children: [
-              // --- CAPAS DE EXPANSIÓN EN CRUZ ---
+              // Capas de expansión en Cruz
               Transform.translate(
                   offset: const Offset(thickness, 0),
                   child: Image.asset(assetPath,
@@ -115,7 +111,7 @@ class _MainWrapperState extends State<MainWrapper> {
                       height: 22.6,
                       color: currentColor.withOpacity(0.35))),
 
-              // --- CAPAS DE EXPANSIÓN EN DIAGONAL ---
+              // Capas de expansión en Diagonal
               Transform.translate(
                   offset: const Offset(thickness, thickness),
                   child: Image.asset(assetPath,
@@ -141,7 +137,7 @@ class _MainWrapperState extends State<MainWrapper> {
                       height: 22.6,
                       color: currentColor.withOpacity(0.35))),
 
-              // --- ICONO ORIGINAL (Centro) ---
+              // Icono Original
               Image.asset(
                 assetPath,
                 width: 22.6,
@@ -156,10 +152,8 @@ class _MainWrapperState extends State<MainWrapper> {
           Text(
             label,
             style: TextStyle(
-              fontSize: 9.5, // <--- Este es el tamaño que pediste mantener
-              fontWeight: isActive
-                  ? FontWeight.w900
-                  : FontWeight.w700, // <--- Volvemos al peso original
+              fontSize: 9.5,
+              fontWeight: isActive ? FontWeight.w900 : FontWeight.w700,
               color: currentColor,
             ),
           ),
