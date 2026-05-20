@@ -1259,7 +1259,7 @@ class _MonitorScreenState extends State<MonitorScreen>
             const SizedBox(height: 20),
             Text(
               "ERROR DE COMUNICACIÓN",
-              style: GoogleFonts.orbitron(
+              style: GoogleFonts.inter(
                 color: const Color(0xFF0F172A),
                 fontWeight: FontWeight.bold,
                 fontSize: 14,

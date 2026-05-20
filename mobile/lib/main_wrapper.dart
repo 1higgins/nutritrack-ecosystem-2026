@@ -7,11 +7,12 @@ class MainWrapper extends StatefulWidget {
   final String role;
   final String userName;
 
-  const MainWrapper(
-      {super.key,
-      required this.token,
-      required this.role,
-      required this.userName});
+  const MainWrapper({
+    super.key,
+    required this.token,
+    required this.role,
+    required this.userName,
+  });
 
   @override
   State<MainWrapper> createState() => _MainWrapperState();
@@ -19,25 +20,27 @@ class MainWrapper extends StatefulWidget {
 
 class _MainWrapperState extends State<MainWrapper> {
   int _currentIndex = 0;
-  late List<Widget> _screens;
-
-  @override
-  void initState() {
-    super.initState();
-    _screens = [
-      MonitorScreen(
-          token: widget.token, role: widget.role, userName: widget.userName),
-      AnalyticsScreen(token: widget.token),
-      const Center(child: Text("Centro de Alertas")),
-      const Center(child: Text("Ajustes de Cuenta")),
-    ];
-  }
 
   @override
   Widget build(BuildContext context) {
+    // 👇 Mudar la lista aquí reconstruye las pantallas dinámicamente con datos reales sin congelar nulos
+    final List<Widget> screens = [
+      MonitorScreen(
+        token: widget.token,
+        role: widget.role,
+        userName: widget.userName,
+      ),
+      AnalyticsScreen(
+        token: widget.token,
+        role: widget.role,
+      ),
+      const Center(child: Text("Centro de Alertas")),
+      const Center(child: Text("Ajustes de Cuenta")),
+    ];
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      body: _screens[_currentIndex],
+      body: screens[_currentIndex],
       bottomNavigationBar: Container(
         height: 68, // Mantenemos tu medida
         decoration: BoxDecoration(
@@ -67,7 +70,6 @@ class _MainWrapperState extends State<MainWrapper> {
     );
   }
 
-  // Lógica unificada para todos tus PNGs
   // Lógica unificada para todos tus PNGs sin la barrita azul
   Widget _buildPNGNavItem(int index, String assetPath, String label) {
     final bool isActive = _currentIndex == index;
@@ -159,7 +161,6 @@ class _MainWrapperState extends State<MainWrapper> {
                   ? FontWeight.w900
                   : FontWeight.w700, // <--- Volvemos al peso original
               color: currentColor,
-              // Eliminamos el letterSpacing para que no se estiren las palabras
             ),
           ),
         ],

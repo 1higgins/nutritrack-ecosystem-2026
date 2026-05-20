@@ -88,9 +88,11 @@ class Lote {
           .trim(),
       entregado: json['entregado'] as bool? ?? false,
       // Mapeo seguro para la fecha de creación del lote
+      // Mapeo ultra-seguro tolerante a esquemas parciales (como LoteRead de FastAPI)
       fechaCreacion: json['fecha_creacion'] != null
           ? DateTime.parse(json['fecha_creacion']).toLocal()
-          : DateTime.now(),
+          : DateTime
+              .now(), // Fallback automático si el esquema del backend omite el timestamp
       creadorId: json['creador_id'] as int? ?? 0,
       creadorUsername: json['creador_username'] as String?,
       custodioId: json['custodio_id'] as int?,

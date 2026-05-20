@@ -285,10 +285,11 @@ def marcar_como_entregado(
     current_user: models.User = Depends(get_current_user)
 ):
     """
-    CIERRE DE CUSTODIA CON HANDSHAKE: 
-    Requiere validación de OPA, Código y Password para finalizar el flujo.
+    CIERRE DE CUSTODIA CON HANDSHAKE BLINDADO: 
+    Valida roles, contraseñas y exige obligatoriamente que el lote cuente 
+    con al menos una lectura de sensor registrada antes de cerrarse.
     """
-    # 1. Búsqueda exhaustiva con validación de seguridad
+    # 1. Búsqueda exhaustiva del lote
     lote = db.query(models.Lote).filter(models.Lote.codigo_lote == datos_entrega.codigo_lote).first()
     
     if not lote:
@@ -303,20 +304,40 @@ def marcar_como_entregado(
             detail="Credenciales de seguridad inválidas para este lote."
         )
 
-    # 2. Verificación de permisos de usuario
-    es_custodio = lote.custodio_id == current_user.id
-    es_admin = current_user.role == "admin"
-
-    if not (es_custodio or es_admin):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Seguridad: Solo el transportista a cargo (vínculo activo) o un Administrador pueden finalizar este lote."
-        )
-
     if lote.entregado:
         raise HTTPException(status_code=400, detail="Operación redundante: El lote ya figura como entregado.")
+
+    # ==========================================================================
+    # 🛑 CONTROL DE INTEGRIDAD TÉRMICA (SOLUCIÓN AL FALLO DE "SIN DATOS")
+    # ==========================================================================
+    # Contamos de manera ultra rápida cuántas lecturas tiene asociadas este lote
+    conteo_telemetria = db.query(models.Telemetria).filter(models.Telemetria.lote_id == lote.id).count()
+
+    if conteo_telemetria == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Error de proceso: El lote '{lote.codigo_lote}' se encuentra en estado ESPERANDO "
+                f"y no registra ninguna medición de temperatura. No se puede finalizar un lote sin historial térmico."
+            )
+        )
+    # ==========================================================================
+
+    # 2. Validación de permisos de usuario (Roles autorizados)
+    if current_user.role not in ["admin", "OPA", "OPT"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seguridad: El rol actual no tiene autorización para manipular estados logísticos."
+        )
+
+    # Si es un transportista (OPT), debe ser el custodio asignado
+    if current_user.role == "OPT" and lote.custodio_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seguridad: No puedes entregar este lote porque se encuentra bajo la custodia de otro transportista."
+        )
         
-    # 3. Ejecución del cierre
+    # 3. Ejecución segura del cierre
     lote.entregado = True
     db.commit()
     db.refresh(lote)

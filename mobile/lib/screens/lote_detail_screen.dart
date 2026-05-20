@@ -341,7 +341,7 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
         children: [
           if (!isFullScreen) ...[
             Padding(
-              padding: const EdgeInsets.only(left: 6, top: 4, bottom: 6),
+              padding: const EdgeInsets.only(left: 6, top: 4, bottom: 10),
               child: Text(
                 "Gráfica de Temperatura",
                 style: GoogleFonts.inter(
