@@ -158,12 +158,19 @@ class _EntregaLotesScreenState extends State<EntregaLotesScreen> {
               const SizedBox(height: 19),
 
               // Botón de Confirmación con el color Ámbar Logístico exacto de tu condicional (0xFFF59E0B)
+              // BOTÓN DE FINALIZAR ENTREGA MINIMALISTA (OUTLINED)
               SizedBox(
                 width: double.infinity,
                 height: 55,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF59E0B),
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(
+                        color: Color.fromARGB(255, 59, 130, 246),
+                        width: 2), // Borde negro
+                    foregroundColor: const Color(
+                        0xFF0F172A), // Color para el efecto ripple / texto
+                    backgroundColor:
+                        const Color.fromARGB(255, 255, 255, 255), // Sin fondo
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -184,7 +191,6 @@ class _EntregaLotesScreenState extends State<EntregaLotesScreen> {
                           });
 
                           try {
-                            // Ejecución idéntica a tu bloque original del tipo == "entregar"
                             await _loteService.entregarLote(widget.token, {
                               "nombre_opa": _nombreOpaController.text.trim(),
                               "codigo_lote": _codigoController.text.trim(),
@@ -194,7 +200,6 @@ class _EntregaLotesScreenState extends State<EntregaLotesScreen> {
 
                             if (mounted) {
                               setState(() => _isLoadingAction = false);
-                              // Retorna 'true' para avisar a monitor_screen que ejecute _loadData()
                               Navigator.pop(context, true);
                             }
                           } catch (e) {
@@ -212,15 +217,19 @@ class _EntregaLotesScreenState extends State<EntregaLotesScreen> {
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
-                            color: Colors.white,
+                            color:
+                                Color(0xFF0F172A), // Indicador de carga negro
                             strokeWidth: 2,
                           ),
                         )
                       : Text(
                           "FINALIZAR ENTREGA",
                           style: GoogleFonts.inter(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            color: const Color.fromARGB(
+                                255, 59, 130, 246), // Letras negras
+                            fontSize: 15,
+                            letterSpacing: 0.3,
                           ),
                         ),
                 ),

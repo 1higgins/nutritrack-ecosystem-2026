@@ -291,9 +291,15 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                   SizedBox(
                     width: double.infinity,
                     height: 55,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F172A), // Slate 900
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(
+                            color: Color.fromARGB(255, 59, 130, 246),
+                            width: 2), // Borde negro
+                        foregroundColor: const Color(
+                            0xFF0F172A), // Efecto ripple / splash negro
+                        backgroundColor: const Color.fromARGB(
+                            255, 255, 255, 255), // Sin fondo
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -305,16 +311,19 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                               height: 20,
                               width: 20,
                               child: CircularProgressIndicator(
-                                color: Colors.white,
+                                color: Color(
+                                    0xFF0F172A), // Progreso en color negro
                                 strokeWidth: 2,
                               ),
                             )
                           : Text(
                               "REGISTRAR CREDENCIALES",
                               style: GoogleFonts.inter(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                letterSpacing: 0.5,
+                                fontWeight: FontWeight.w700,
+                                color: const Color.fromARGB(
+                                    255, 59, 130, 246), // Letras negras
+                                fontSize: 15,
+                                letterSpacing: 0.3,
                               ),
                             ),
                     ),

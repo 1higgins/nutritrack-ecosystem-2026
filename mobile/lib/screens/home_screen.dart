@@ -149,7 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding:
                       const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
                   child: Divider(
-                    color: const Color(0xFFE2E8F0).withOpacity(0.6),
+                    color: const Color(0xFFE2E8F0).withValues(alpha: 0.6),
                     thickness: 1,
                   ),
                 ),
@@ -279,8 +279,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: InkWell(
                                 onTap: () => _showLogoutBottomSheet(context),
                                 customBorder: const CircleBorder(),
-                                splashColor: Colors.white.withOpacity(0.3),
-                                highlightColor: Colors.white.withOpacity(0.15),
+                                splashColor:
+                                    Colors.white.withValues(alpha: 0.3),
+                                highlightColor:
+                                    Colors.white.withValues(alpha: 0.15),
                                 child: Container(
                                   height: 48,
                                   width: 48,
@@ -623,7 +625,7 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),
@@ -635,8 +637,8 @@ class _HomeScreenState extends State<HomeScreen> {
         child: InkWell(
           onTap: onTap, // 👈 3. Se ejecuta la función al presionar
           borderRadius: BorderRadius.circular(24),
-          splashColor: accentColor.withOpacity(0.05),
-          highlightColor: accentColor.withOpacity(0.02),
+          splashColor: accentColor.withValues(alpha: 0.05),
+          highlightColor: accentColor.withValues(alpha: 0.02),
           child: Column(
             children: [
               Container(
@@ -653,7 +655,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Icon(
                     icon,
                     size: 56,
-                    color: accentColor.withOpacity(0.8),
+                    color: accentColor.withValues(alpha: 0.8),
                   ),
                 ),
               ),
@@ -696,7 +698,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Icon(
                       Icons.arrow_forward_ios_rounded,
                       size: 14,
-                      color: textSecondary.withOpacity(0.6),
+                      color: textSecondary.withValues(alpha: 0.6),
                     ),
                   ],
                 ),

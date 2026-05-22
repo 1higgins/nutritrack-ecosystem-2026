@@ -21,6 +21,22 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
   final TextEditingController _tempMinController = TextEditingController();
   final TextEditingController _tempMaxController = TextEditingController();
   final TextEditingController _passwordLoteController = TextEditingController();
+  final FocusNode _codigoFocus = FocusNode();
+  final FocusNode _productoFocus = FocusNode();
+  final FocusNode _tempMinFocus = FocusNode();
+  final FocusNode _tempMaxFocus = FocusNode();
+  final FocusNode _passwordFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    // Escuchan cuando pones el dedo para refrescar el hintText de inmediato
+    _codigoFocus.addListener(() => setState(() {}));
+    _productoFocus.addListener(() => setState(() {}));
+    _tempMinFocus.addListener(() => setState(() {}));
+    _tempMaxFocus.addListener(() => setState(() {}));
+    _passwordFocus.addListener(() => setState(() {}));
+  }
 
   // Gestión de estados reactivos en UI
   bool _isLoadingAction = false;
@@ -33,6 +49,11 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
     _tempMinController.dispose();
     _tempMaxController.dispose();
     _passwordLoteController.dispose();
+    _codigoFocus.dispose();
+    _productoFocus.dispose();
+    _tempMinFocus.dispose();
+    _tempMaxFocus.dispose();
+    _passwordFocus.dispose();
     super.dispose();
   }
 
@@ -165,26 +186,37 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
                     fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 22),
+              // 1. CÓDIGO DE LOTE
               _buildFormInputField(
                 controller: _codigoController,
+                focusNode:
+                    _codigoFocus, // 👈 Su propio nodo asignado correctamente
                 label: "CÓDIGO DE LOTE",
                 icon: Icons.qr_code_scanner_rounded,
                 enabled: !_isLoadingAction,
               ),
               const SizedBox(height: 18),
+
+              // 2. PRODUCTO / CARGA
               _buildFormInputField(
                 controller: _productoController,
+                focusNode:
+                    _productoFocus, // 👈 Su propio nodo asignado correctamente
                 label: "PRODUCTO / CARGA",
                 icon: Icons.inventory_2_outlined,
                 enabled: !_isLoadingAction,
               ),
               const SizedBox(height: 18),
+
+              // 3. RANGOS TÉRMICOS
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: _buildFormInputField(
                       controller: _tempMinController,
+                      focusNode:
+                          _tempMinFocus, // 👈 Su propio nodo asignado correctamente
                       label: "MIN °C",
                       icon: Icons.ac_unit_rounded,
                       isNumber: true,
@@ -195,6 +227,8 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
                   Expanded(
                     child: _buildFormInputField(
                       controller: _tempMaxController,
+                      focusNode:
+                          _tempMaxFocus, // 👈 Su propio nodo asignado correctamente
                       label: "MAX °C",
                       icon: Icons.wb_sunny_rounded,
                       isNumber: true,
@@ -204,8 +238,12 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
                 ],
               ),
               const SizedBox(height: 18),
+
+              // 4. CONTRASEÑA DE SEGURIDAD
               _buildFormInputField(
                 controller: _passwordLoteController,
+                focusNode:
+                    _passwordFocus, // 👈 Su propio nodo asignado correctamente
                 label: "CONTRASEÑA DE SEGURIDAD",
                 icon: Icons.lock_outline_rounded,
                 isPassword: true,
@@ -217,7 +255,8 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: Colors.redAccent.withAlpha((0.08 * 255).round()),
+                    color: const Color.fromARGB(255, 220, 78, 78)
+                        .withAlpha((0.08 * 255).round()),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -239,12 +278,18 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
                 ),
               ],
               const SizedBox(height: 19),
+              // 4. BOTÓN DE REGISTRO MINIMALISTA (OUTLINED)
               SizedBox(
                 width: double.infinity,
                 height: 56,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F172A),
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    // Define el color del borde y el texto en estados normales
+                    side: const BorderSide(
+                        color: Color.fromARGB(255, 59, 130, 246), width: 2),
+                    foregroundColor: const Color(0xFF0F172A),
+                    backgroundColor: const Color.fromARGB(
+                        255, 255, 255, 255), // Totalmente sin fondo
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16)),
                     elevation: 0,
@@ -255,13 +300,15 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
                           height: 24,
                           width: 24,
                           child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2.5),
+                              color: Color(0xFF0F172A),
+                              strokeWidth: 2.5), // Indicador ahora es negro
                         )
                       : Text(
                           "CONFIRMAR REGISTRO",
                           style: GoogleFonts.inter(
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: const Color.fromARGB(
+                                255, 59, 130, 246), // Letras negras
                             fontSize: 15,
                             letterSpacing: 0.3,
                           ),
@@ -279,6 +326,7 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    required FocusNode focusNode, // 📍 1. NUEVO PARAMETRO REQUERIDO
     bool isNumber = false,
     bool isPassword = false,
     bool enabled = true,
@@ -297,6 +345,7 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
       ),
       child: TextField(
         controller: controller,
+        focusNode: focusNode, // 📍 2. ASIGNAMOS EL NODE AL TEXTFIELD
         obscureText: isPassword,
         enabled: enabled,
         keyboardType: isNumber
@@ -307,15 +356,15 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
             fontWeight: FontWeight.w600,
             color: const Color(0xFF0F172A)),
         decoration: InputDecoration(
-          labelText: label,
-          labelStyle: GoogleFonts.inter(
+          // 📍 3. TRUCO MAESTRO: Si está enfocado, el hint se vuelve vacío "" de inmediato
+          hintText: focusNode.hasFocus ? "" : label,
+          hintStyle: GoogleFonts.inter(
               color: const Color(0xFF64748B),
               fontSize: 11,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w500,
               letterSpacing: 0.5),
-          floatingLabelBehavior: FloatingLabelBehavior.auto,
           prefixIcon: Icon(icon,
-              size: 20, color: const Color.fromARGB(255, 81, 148, 255)),
+              size: 20, color: const Color.fromARGB(255, 59, 130, 246)),
           filled: true,
           fillColor: enabled ? Colors.white : const Color(0xFFF1F5F9),
           border: OutlineInputBorder(

@@ -150,7 +150,8 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
                           width: 38,
                           height: 38,
                           decoration: BoxDecoration(
-                              color: const Color(0xFF3B82F6).withOpacity(0.12),
+                              color: const Color(0xFF3B82F6)
+                                  .withValues(alpha: 0.12),
                               shape: BoxShape.circle),
                           child: IconButton(
                             padding: EdgeInsets.zero,
@@ -176,7 +177,8 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
                             width: 42,
                             decoration: BoxDecoration(
                               // Fondo celeste muy suave y transparente tal cual lo pediste
-                              color: const Color(0xFFE0F2FE).withOpacity(0.6),
+                              color: const Color(0xFFE0F2FE)
+                                  .withValues(alpha: 0.6),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -295,7 +297,7 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF94A3B8).withOpacity(0.1),
+                    color: const Color(0xFF94A3B8).withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -354,7 +356,7 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
             ? []
             : [
                 BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
+                    color: Colors.black.withValues(alpha: 0.03),
                     blurRadius: 20,
                     offset: const Offset(0, 10))
               ],
@@ -436,7 +438,7 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
                 },
                 tooltipSettings: const InteractiveTooltip(enable: false),
                 lineType: TrackballLineType.vertical,
-                lineColor: const Color(0xFF3B82F6).withOpacity(0.3),
+                lineColor: const Color(0xFF3B82F6).withValues(alpha: 0.3),
               ),
               primaryXAxis: CategoryAxis(
                 isVisible: true,
@@ -466,7 +468,7 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
                           start: visibleBandStart,
                           end: visibleBandEnd,
                           color: const Color.fromARGB(255, 55, 255, 0)
-                              .withOpacity(0.09),
+                              .withValues(alpha: 0.09),
                           isVisible: true,
                         ),
                       ]
@@ -615,7 +617,7 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
       final String estadoServidor = lote.estadoActual.toUpperCase();
       if (estadoServidor == "OPTIMO" || estadoServidor == "ESPERANDO") {
         estadoVisual = "Óptimo";
-        fondoTarjetaActual = const Color(0xFF10B981);
+        fondoTarjetaActual = const Color.fromARGB(255, 32, 212, 104);
       } else if (estadoServidor == "ALERTA") {
         estadoVisual = "Alerta";
         fondoTarjetaActual = const Color(0xFFF59E0B);
@@ -675,7 +677,7 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
                           TextSpan(
                             text: tempActual != null ? " °C" : "",
                             style: GoogleFonts.inter(
-                                color: Colors.white.withOpacity(0.9),
+                                color: Colors.white.withValues(alpha: 0.9),
                                 fontSize: 13,
                                 // 📍 LIGERAMENTE MÁS DELGADO: Pasó de w500 a w400 para acompañar la armonía del número
                                 fontWeight: FontWeight.w400),
@@ -687,7 +689,7 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 3),
                       decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12)),
                       child: Text(
                         estadoVisual.toUpperCase(),
@@ -717,7 +719,7 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                          color: Colors.black.withOpacity(0.02),
+                          color: Colors.black.withValues(alpha: 0.02),
                           blurRadius: 15,
                           offset: const Offset(0, 8))
                     ]),
@@ -806,7 +808,7 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
         borderRadius: BorderRadius.circular(25),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 20,
               offset: const Offset(0, 10))
         ],
@@ -895,7 +897,7 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
         child: Column(
           children: [
             Icon(Icons.sensors_off_rounded,
-                color: Colors.grey.withOpacity(0.3), size: 40),
+                color: Colors.grey.withValues(alpha: 0.3), size: 40),
             const SizedBox(height: 12),
             Text("ESPERANDO SEÑAL DEL SENSOR",
                 style: GoogleFonts.inter(
@@ -927,12 +929,12 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
                 color: alert
-                    ? const Color(0xFFFCA5A5).withOpacity(0.5)
-                    : const Color(0xFF10B981).withOpacity(0.3),
+                    ? const Color(0xFFFCA5A5).withValues(alpha: 0.5)
+                    : const Color(0xFF10B981).withValues(alpha: 0.3),
                 width: 1),
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withOpacity(0.02),
+                  color: Colors.black.withValues(alpha: 0.02),
                   blurRadius: 10,
                   offset: const Offset(0, 4))
             ],
@@ -972,7 +974,7 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
           color: (alert ? const Color(0xFFEF4444) : const Color(0xFF10B981))
-              .withOpacity(0.1),
+              .withValues(alpha: 0.1),
           shape: BoxShape.circle),
       child: Icon(alert ? Icons.warning_rounded : Icons.verified_rounded,
           color: alert ? const Color(0xFFEF4444) : const Color(0xFF10B981),

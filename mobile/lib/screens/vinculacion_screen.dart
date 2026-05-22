@@ -19,6 +19,19 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
   final TextEditingController _codigoController = TextEditingController();
   final TextEditingController _passwordLoteController = TextEditingController();
 
+  // Nodos de enfoque independientes
+  final FocusNode _codigoFocus = FocusNode();
+  final FocusNode _nombreOpaFocus = FocusNode();
+  final FocusNode _passwordFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _codigoFocus.addListener(() => setState(() {}));
+    _nombreOpaFocus.addListener(() => setState(() {}));
+    _passwordFocus.addListener(() => setState(() {}));
+  }
+
   bool _isLoadingAction = false;
   String? _localError;
 
@@ -27,16 +40,22 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
     _nombreOpaController.dispose();
     _codigoController.dispose();
     _passwordLoteController.dispose();
+    _codigoFocus.dispose();
+    _nombreOpaFocus.dispose();
+    _passwordFocus.dispose();
     super.dispose();
   }
 
   String? _validarFormularioVinculo() {
-    if (_nombreOpaController.text.trim().isEmpty)
+    if (_nombreOpaController.text.trim().isEmpty) {
       return "El nombre del OPA (Emisor) es requerido.";
-    if (_codigoController.text.trim().isEmpty)
+    }
+    if (_codigoController.text.trim().isEmpty) {
       return "El código del lote es requerido.";
-    if (_passwordLoteController.text.trim().isEmpty)
+    }
+    if (_passwordLoteController.text.trim().isEmpty) {
       return "La contraseña de seguridad es requerida.";
+    }
     return null;
   }
 
@@ -53,7 +72,6 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
     });
 
     try {
-      // JSON estructurado idéntico al Pydantic "LoteVincular" del Backend
       final Map<String, dynamic> payloadVinculo = {
         "nombre_opa": _nombreOpaController.text.trim(),
         "codigo_lote": _codigoController.text.trim(),
@@ -64,15 +82,13 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
 
       if (mounted) {
         setState(() => _isLoadingAction = false);
-        // Retornamos 'true' para avisar a la pantalla madre que actualice el listado de lotes
         Navigator.pop(context, true);
       }
     } on LoteServiceException catch (e) {
       if (mounted) {
         setState(() {
           _isLoadingAction = false;
-          _localError = e
-              .message; // Muestra el mensaje exacto (401, 400 Conflicto, etc.) enviado por FastAPI
+          _localError = e.message;
         });
       }
     } catch (e) {
@@ -133,27 +149,37 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
                     fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 22),
+
+              // 1. CÓDIGO DE LOTE
               _buildFormInputField(
                 controller: _codigoController,
+                focusNode: _codigoFocus,
                 label: "CÓDIGO DE LOTE",
                 icon: Icons.qr_code_scanner_rounded,
                 enabled: !_isLoadingAction,
               ),
               const SizedBox(height: 18),
+
+              // 2. NOMBRE DEL OPA
               _buildFormInputField(
                 controller: _nombreOpaController,
+                focusNode: _nombreOpaFocus,
                 label: "NOMBRE DEL OPA (EMISOR)",
                 icon: Icons.person_pin_rounded,
                 enabled: !_isLoadingAction,
               ),
               const SizedBox(height: 18),
+
+              // 3. CONTRASEÑA DE SEGURIDAD
               _buildFormInputField(
                 controller: _passwordLoteController,
+                focusNode: _passwordFocus,
                 label: "CONTRASEÑA DE SEGURIDAD",
                 icon: Icons.lock_outline_rounded,
                 isPassword: true,
                 enabled: !_isLoadingAction,
               ),
+
               if (_localError != null) ...[
                 const SizedBox(height: 20),
                 Container(
@@ -182,15 +208,22 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
                 ),
               ],
               const SizedBox(height: 19),
+              // --- BOTÓN PRINCIPAL DE VÍNCULO MINIMALISTA (OUTLINED) ---
               SizedBox(
                 width: double.infinity,
                 height: 56,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(
-                        0xFF10B981), // Color Verde Esmeralda enfocado en Transporte/Rutas
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(
+                        color: Color.fromARGB(255, 59, 130, 246),
+                        width: 2), // Borde negro
+                    foregroundColor: const Color(
+                        0xFF0F172A), // Efecto de pulsación (ripple) negro
+                    backgroundColor:
+                        const Color.fromARGB(255, 255, 255, 255), // Sin fondo
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                     elevation: 0,
                   ),
                   onPressed: _isLoadingAction ? null : _ejecutarVinculacion,
@@ -199,13 +232,17 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
                           height: 24,
                           width: 24,
                           child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2.5),
+                            color:
+                                Color(0xFF0F172A), // Indicador de carga negro
+                            strokeWidth: 2.5,
+                          ),
                         )
                       : Text(
                           "ESTABLECER VÍNCULO",
                           style: GoogleFonts.inter(
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: const Color.fromARGB(
+                                255, 59, 130, 246), // Letras negras
                             fontSize: 15,
                             letterSpacing: 0.3,
                           ),
@@ -223,6 +260,7 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    required FocusNode focusNode,
     bool isPassword = false,
     bool enabled = true,
   }) {
@@ -239,6 +277,7 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
       ),
       child: TextField(
         controller: controller,
+        focusNode: focusNode,
         obscureText: isPassword,
         enabled: enabled,
         style: GoogleFonts.inter(
@@ -246,17 +285,15 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
             fontWeight: FontWeight.w600,
             color: const Color(0xFF0F172A)),
         decoration: InputDecoration(
-          labelText: label,
-          labelStyle: GoogleFonts.inter(
+          hintText:
+              focusNode.hasFocus ? "" : label, // Usamos solo hintText limpio
+          hintStyle: GoogleFonts.inter(
               color: const Color(0xFF64748B),
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.5),
-          floatingLabelBehavior: FloatingLabelBehavior.auto,
           prefixIcon: Icon(icon,
-              size: 20,
-              color: const Color(
-                  0xFF10B981)), // Sincronizado con el color de la pantalla
+              size: 20, color: const Color.fromARGB(255, 59, 130, 246)),
           filled: true,
           fillColor: enabled ? Colors.white : const Color(0xFFF1F5F9),
           border: OutlineInputBorder(

@@ -63,7 +63,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               const SizedBox(height: 20),
 
               // ==========================================================================
-              // GRILLA DE ACCESOS DIRECTOS (OCUPA TODO EL ESPACIO BLANCO SOBRANTE)
+
               // ==========================================================================
               Expanded(
                 child: LayoutBuilder(
