@@ -101,10 +101,10 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
         ),
         title: Text(
           "GESTIÓN DE ACCESOS",
-          style: GoogleFonts.orbitron(
+          style: GoogleFonts.inter(
             color: const Color(0xFF0F172A),
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
             letterSpacing: 0.5,
           ),
         ),
@@ -125,14 +125,14 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "CREAR NUEVO USUARIO",
+                    "Crear nuevo usuario",
                     style: GoogleFonts.inter(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
                       color: const Color(0xFF0F172A),
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 10),
                   Text(
                     "Registre las credenciales operativas del personal garantizando la segregación de funciones (RBAC).",
                     style: GoogleFonts.inter(
@@ -141,7 +141,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 22),
 
                   // --- BANNER DE FEEDBACK DE ERROR ---
                   if (_errorMessage != null) ...[
@@ -173,7 +173,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                     style: GoogleFonts.inter(
                         fontSize: 14, fontWeight: FontWeight.w600),
                     decoration: _buildInputDecoration(
-                      hint: "Ej: Carlos_2026",
+                      hint: "Ej: AIBENT_2026",
                       prefixIcon: Icons.person_outline_rounded,
                     ),
                     validator: (value) {
@@ -285,7 +285,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                             },
                     ),
                   ),
-                  const SizedBox(height: 35),
+                  const SizedBox(height: 19),
 
                   // --- BOTÓN PRINCIPAL DE REGISTRO ---
                   SizedBox(

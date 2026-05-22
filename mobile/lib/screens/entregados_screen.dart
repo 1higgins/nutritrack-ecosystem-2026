@@ -64,8 +64,8 @@ class _EntregaLotesScreenState extends State<EntregaLotesScreen> {
           "CONFIRMAR ENTREGA",
           style: GoogleFonts.inter(
             color: const Color(0xFF0F172A),
-            fontWeight: FontWeight.w800,
-            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
             letterSpacing: 0.5,
           ),
         ),
@@ -81,14 +81,14 @@ class _EntregaLotesScreenState extends State<EntregaLotesScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "FINALIZAR ENTREGA",
+                "Finalizar entregas",
                 style: GoogleFonts.inter(
                   fontSize: 20,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   color: const Color(0xFF0F172A),
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 10),
               Text(
                 "Complete los datos de la contraparte para asentar el cierre definitivo del flujo logístico en el backend.",
                 style: GoogleFonts.inter(
@@ -97,7 +97,7 @@ class _EntregaLotesScreenState extends State<EntregaLotesScreen> {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 22),
 
               // Campo 1: Nombre o Código del Lote (Mapeado a _codigoController)
               _buildModernField(
@@ -155,7 +155,7 @@ class _EntregaLotesScreenState extends State<EntregaLotesScreen> {
                   ),
                 ),
               ],
-              const SizedBox(height: 24),
+              const SizedBox(height: 19),
 
               // Botón de Confirmación con el color Ámbar Logístico exacto de tu condicional (0xFFF59E0B)
               SizedBox(

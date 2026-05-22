@@ -1,14 +1,8 @@
 import 'package:flutter/material.dart';
-
 import 'package:google_fonts/google_fonts.dart';
-
+import 'package:mobile_app/screens/home_screen.dart';
 import '../services/auth_service.dart';
-
-import '../main_wrapper.dart';
-
 import 'package:animations/animations.dart';
-
-import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,50 +13,41 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService();
-
   bool _isLoading = false;
-
   bool _obscurePassword = true;
-
-// Nuevo: Control de selección de rol
-
   String? _selectedRole;
 
   final TextEditingController _userController = TextEditingController();
-
   final TextEditingController _passController = TextEditingController();
 
   @override
   void initState() {
-    super
-        .initState(); // 📍 CORREGIDO: Termina en punto y coma, sin llaves continuas
-    _checkAutoLogin(); // Se ejecuta inmediatamente después de inicializar el estado
+    super.initState();
+    _checkAutoLogin();
   }
 
   void _checkAutoLogin() async {
-    // Leemos el token usando el método que creamos en tu AuthService
     String? token = await _authService.getToken();
+    String? savedRole = await _authService.getRole();
+    String? savedUsername = await _authService.getUsername();
 
-    if (token != null) {
-      // Recuperamos el rol y usuario guardados para el handshake
-      final prefs = await SharedPreferences.getInstance();
-      String? savedRole = prefs.getString("user_role");
+    // Si todo está guardado localmente, entramos directo sin decodificaciones manuales raras
+    if (token != null && savedRole != null && savedUsername != null) {
+      if (!mounted) return;
 
-      if (mounted && savedRole != null) {
-        debugPrint(
-            "⚡ Redirección Automática: Token de sesión detectado en el dispositivo.");
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MainWrapper(
-              token: token,
-              role: savedRole,
-              userName:
-                  "Operario Activo", // Identificador genérico de sesión persistente
-            ),
+      debugPrint(
+          "⚡ Redirección Automática Blindada: Sesión recuperada para: $savedUsername ($savedRole)");
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => HomeScreen(
+            token: token,
+            role: savedRole, // Envía "Administrador", "Operario", etc.
+            userName: savedUsername,
           ),
-        );
-      }
+        ),
+      );
     }
   }
 
@@ -82,7 +67,6 @@ class _LoginScreenState extends State<LoginScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-
       return;
     }
 
@@ -95,58 +79,32 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (result != null) {
-// --- TRADUCCIÓN DE ROLES (UI -> BACKEND) ---
-
-        String serverRole = result.role; // Viene: "admin", "OPT" o "OPA"
-
-        String selectedUI =
-            _selectedRole!; // Viene: "Admin", "Transportista" o "Operario"
-
-        bool isAuthorized = false;
-
-// Lógica de validación cruzada
-
-// Lógica de validación cruzada (Versión blindada)
-
-        if (selectedUI == "Administrador" &&
-            serverRole.toLowerCase() == "admin") {
-          isAuthorized = true;
-        } else if (selectedUI == "Transportista" &&
-            serverRole.toUpperCase() == "OPT") {
-          isAuthorized = true;
-        } else if (selectedUI == "Operario" &&
-            serverRole.toUpperCase() == "OPA") {
-          isAuthorized = true;
-        }
-
-        if (!isAuthorized) {
+        // Como el servicio ya nos devuelve el rol limpio ("Administrador", etc.), validamos directo
+        if (result.role != _selectedRole) {
           setState(() => _isLoading = false);
-
           if (!mounted) return;
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text("Acceso denegado: Este usuario no es $selectedUI"),
+              content:
+                  Text("Acceso denegado: Este usuario no es $_selectedRole"),
               backgroundColor: Colors.redAccent,
               behavior: SnackBarBehavior.floating,
             ),
           );
-
           return;
         }
 
-// Si pasa la validación, procedemos
-
         setState(() => _isLoading = false);
-
         if (!mounted) return;
 
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => MainWrapper(
+            builder: (context) => HomeScreen(
               token: result.token,
-              role: result.role,
+              role: result
+                  .role, // Garantizado que es el mismo formato que el auto-login
               userName: _userController.text.trim(),
             ),
           ),
@@ -154,25 +112,25 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } on NutriTrackException catch (e) {
       setState(() => _isLoading = false);
-
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(e.message),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating),
+          content: Text(e.message),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } catch (e) {
       setState(() => _isLoading = false);
-
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text("Error de enlace con el servidor"),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating),
+          content: Text("Error de enlace con el servidor"),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
@@ -272,10 +230,7 @@ class _LoginScreenState extends State<LoginScreen> {
       key: const ValueKey(1),
       mainAxisSize: MainAxisSize.min,
       children: [
-        _buildHeader(
-          "NutriTrack",
-          "Cadena de Frío Inteligente",
-        ),
+        _buildHeader("NutriTrack", "Cadena de Frío Inteligente"),
         const SizedBox(height: 25),
         _buildRoleSelector(),
       ],
@@ -309,8 +264,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-// --- FUNCIÓN AUXILIAR: Crea el título y subtítulo animado ---
-
   Widget _buildHeader(String title, String subtitle) {
     return Column(
       children: [
@@ -323,9 +276,7 @@ class _LoginScreenState extends State<LoginScreen> {
             letterSpacing: 1,
           ),
         ),
-
-        const SizedBox(height: 8), // Distancia optimizada entre títulos
-
+        const SizedBox(height: 8),
         Text(
           subtitle,
           textAlign: TextAlign.center,
@@ -337,8 +288,6 @@ class _LoginScreenState extends State<LoginScreen> {
       ],
     );
   }
-
-// --- WIDGET: SELECTOR DE ROLES ---
 
   Widget _buildRoleSelector() {
     return Column(
@@ -370,8 +319,6 @@ class _LoginScreenState extends State<LoginScreen> {
       ],
     );
   }
-
-// --- WIDGET: FORMULARIO DE LOGIN ---
 
   Widget _buildLoginForm() {
     return Container(
@@ -427,8 +374,6 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-
-// --- COMPONENTES AUXILIARES ---
 
   Widget _buildRoleCard({
     required String title,
@@ -504,74 +449,53 @@ class _LoginScreenState extends State<LoginScreen> {
     required IconData icon,
     bool isPassword = false,
   }) {
-// Creamos un FocusNode local para detectar el clic
-
-    return Focus(
-      onFocusChange: (hasFocus) {
-// Forzamos el redibujado para que el hint sepa si debe mostrarse o no
-
-        setState(() {});
-      },
-      child: Builder(
-        builder: (context) {
-// Detectamos si el campo tiene el foco actualmente
-
-          final bool isFocused = Focus.of(context).hasFocus;
-
-          return Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: TextField(
-              controller: controller,
-              obscureText: isPassword && _obscurePassword,
-              style: GoogleFonts.poppins(
-                fontSize: 15,
-                color: const Color(0xFF1E293B),
-              ),
-              decoration: InputDecoration(
-                border: InputBorder.none,
-
-// LÓGICA DE FUSIÓN: Si está enfocado, el texto es transparente (desaparece)
-
-// Si no, muestra el texto gris original.
-
-                hintText: isFocused ? "" : label,
-
-                hintStyle: GoogleFonts.poppins(
-                  color: const Color(0xFF94A3B8),
-                  fontSize: 15,
-                ),
-
-// Mantenemos tus iconos y tamaños originales intactos
-
-                prefixIcon:
-                    Icon(icon, color: const Color(0xFF2374A6), size: 22),
-
-                suffixIcon: isPassword
-                    ? IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          color: Colors.grey,
-                          size: 20,
-                        ),
-                        onPressed: () => setState(
-                            () => _obscurePassword = !_obscurePassword),
-                      )
-                    : null,
-
-// Mantenemos tu padding exacto de 16 para no afectar el tamaño
-
-                contentPadding:
-                    const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
-              ),
-            ),
-          );
-        },
+    // Rendimiento optimizado: Usamos el comportamiento por defecto de Flutter para el Hint
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: isPassword && _obscurePassword,
+        textAlignVertical: TextAlignVertical.center,
+        style: GoogleFonts.poppins(
+          fontSize: 15,
+          color: const Color(0xFF1E293B),
+        ),
+        decoration: InputDecoration(
+          isDense: true,
+          border: InputBorder.none,
+          hintText: label,
+          hintStyle: GoogleFonts.poppins(
+            color: const Color(0xFF94A3B8),
+            fontSize: 15,
+          ),
+          prefixIcon: Icon(
+            icon,
+            color: const Color(0xFF2374A6),
+            size: 22,
+          ),
+          suffixIcon: isPassword
+              ? IconButton(
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: Colors.grey,
+                    size: 20,
+                  ),
+                  onPressed: () => setState(
+                    () => _obscurePassword = !_obscurePassword,
+                  ),
+                )
+              : null,
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 20,
+            horizontal: 20,
+          ),
+        ),
       ),
     );
   }

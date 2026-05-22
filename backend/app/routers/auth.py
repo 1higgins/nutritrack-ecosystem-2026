@@ -143,7 +143,6 @@ def login_para_access_token(
     db: Session = Depends(database.get_db),
     form_data: OAuth2PasswordRequestForm = Depends()
 ):
-    """Valida credenciales y emite el JWT junto con el Rol del usuario."""
     user = db.query(models.User).filter(models.User.username == form_data.username).first()
     
     if not user or not verify_password(form_data.password, user.hashed_password):
@@ -153,12 +152,18 @@ def login_para_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Generamos el token como siempre
-    access_token = create_access_token(data={"sub": user.username})
+    # 🌟 BLINDAJE 1: Metemos tanto el username como el rol DENTRO del Token cifrado
+    access_token = create_access_token(
+        data={
+            "sub": user.username,
+            "role": user.role
+        }
+    )
 
-    # RETORNO PROFESIONAL: Enviamos el token y el rol explícito
+    # 🌟 BLINDAJE 2: Devolvemos todo de forma explícita en el JSON de respuesta
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "role": user.role  # <--- AÑADIR ESTO: Capturado directamente del modelo User
+        "role": user.role,
+        "username": user.username  # <-- IMPORTANTE: Enviamos la raíz del string puro
     }

@@ -102,7 +102,7 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
           "VINCULAR CUSTODIA",
           style: GoogleFonts.inter(
             color: const Color(0xFF0F172A),
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
             fontSize: 16,
             letterSpacing: 0.5,
           ),
@@ -118,13 +118,13 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "Monitorear Nueva Unidad",
+                "Monitorear nueva unidad",
                 style: GoogleFonts.inter(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
                     color: const Color(0xFF0F172A)),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 10),
               Text(
                 "Ingrese el apretón de manos (handshake) logístico para tomar el control térmico.",
                 style: GoogleFonts.inter(
@@ -132,7 +132,7 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
                     color: const Color(0xFF64748B),
                     fontWeight: FontWeight.w500),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 22),
               _buildFormInputField(
                 controller: _codigoController,
                 label: "CÓDIGO DE LOTE",
@@ -181,7 +181,7 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
                   ),
                 ),
               ],
-              const SizedBox(height: 35),
+              const SizedBox(height: 19),
               SizedBox(
                 width: double.infinity,
                 height: 56,

@@ -118,43 +118,34 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
                   : null;
 
           // 📍 ESTRUCTURA FIJA INTEGRADA: Todo lo que esté en esta columna inicial NO se moverá nunca
+          // 📍 ESTRUCTURA FIJA INTEGRADA: Todo lo que esté en esta columna inicial NO se moverá nunca
           return Column(
             children: [
-              // 📍 CONTROL EXACTO DE ALTURA DESDE EL BORDE SUPERIOR DEL CELULAR
-              const SizedBox(height: 20),
+              // 1. SE SUBE AL LÍMITE TOTAL SUPERIOR
+              const SizedBox(height: 8),
 
               // 📍 ACCIÓN BAR DE PRECISIÓN (Totalmente fija arriba)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: SizedBox(
-                  height: 106,
+                  height:
+                      60, // 2. SE COMPACTÓ DE 106 A 60 PARA RECUPERAR EL ESPACIO
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      // 1. FLECHA DE REGRESAR "<"
-                      Positioned(
-                        left: 3.5,
-                        top: 8.0,
-                        child: IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          icon: const Icon(Icons.arrow_back_ios_new,
-                              color: Color(0xFF0F172A), size: 20),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ),
+                      // 1. FLECHA DE REGRESAR "<" (Ya eliminada por ti)
 
                       // 2. TEXTO "TEMPERATURA"
                       Positioned(
-                        left: 14.0,
-                        top: 36.0,
+                        left: 0.0,
+                        top: 10.0, // 3. SE SUBIÓ DE 36.0 A 10.0
                         child: _buildHeaderInfo(lote),
                       ),
 
                       // 3. BOTÓN AZUL DE TEMPERATURA
                       Positioned(
-                        right: 14.5,
-                        top: 39.5,
+                        right: 135,
+                        top: 11.5, // 3. SE SUBIÓ DE 39.5 A 12.0
                         child: Container(
                           width: 38,
                           height: 38,
@@ -164,8 +155,37 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
                           child: IconButton(
                             padding: EdgeInsets.zero,
                             icon: const Icon(Icons.thermostat,
-                                color: Color(0xFF3B82F6), size: 20),
+                                color: Color.fromARGB(255, 99, 159, 255),
+                                size: 20),
                             onPressed: () => _showFilterBottomSheet(context),
+                          ),
+                        ),
+                      ),
+
+                      Positioned(
+                        left:
+                            309.2, // 👈 Ajusta este número para separarlo del botón azul a tu gusto
+                        top: 9.0, // Centrado armónico por su tamaño de 42
+                        child: GestureDetector(
+                          onTap: () {
+                            // Acción funcional para regresar a la pantalla anterior (monitor_screen.dart)
+                            Navigator.pop(context);
+                          },
+                          child: Container(
+                            height: 42,
+                            width: 42,
+                            decoration: BoxDecoration(
+                              // Fondo celeste muy suave y transparente tal cual lo pediste
+                              color: const Color(0xFFE0F2FE).withOpacity(0.6),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons
+                                  .home_rounded, // 👈 Ícono de inventario/cajas estilizado
+                              color: Color.fromARGB(
+                                  255, 79, 182, 255), // Tu turquesa estilizado
+                              size: 22,
+                            ),
                           ),
                         ),
                       ),
@@ -174,7 +194,11 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
                 ),
               ),
 
-              const SizedBox(height: 17),
+              const SizedBox(
+                  height:
+                      35), // Mantiene la misma distancia exacta con la cuadrícula
+
+              // 📍 CUADRÍCULA DE MÉTRICAS COMPLETAMENTE FIJA...
 
               // 📍 CUADRÍCULA DE MÉTRICAS COMPLETAMENTE FIJA (Ya no se desplaza ni baila al actualizar)
               Padding(
@@ -296,7 +320,7 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
                   style: GoogleFonts.inter(
                     color:
                         const Color(0xFF94A3B8), // Subtexto de guía logística
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w400,
                   ),
                 ),
@@ -563,18 +587,18 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
           Text(
             "Temperatura",
             style: GoogleFonts.inter(
-                fontSize: 32,
+                fontSize: 27,
                 fontWeight: FontWeight.w700,
                 color: const Color(0xFF1E293B),
                 letterSpacing: -0.8),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             // 📍 Muestra dinámicamente el filtro exacto seleccionado
             "$subtituloFiltro",
             style: GoogleFonts.inter(
                 color: const Color(0xFF94A3B8),
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: FontWeight.w500),
           ),
         ],

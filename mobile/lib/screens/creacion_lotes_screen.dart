@@ -134,7 +134,7 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
           "NUEVO DESPACHO",
           style: GoogleFonts.inter(
             color: const Color(0xFF0F172A),
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
             fontSize: 16,
             letterSpacing: 0.5,
           ),
@@ -150,13 +150,13 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "Registrar Lote de Alimentos",
+                "Registrar Lotes",
                 style: GoogleFonts.inter(
                     fontSize: 20,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     color: const Color(0xFF0F172A)),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 10),
               Text(
                 "Establezca los parámetros de control críticos para la telemetría.",
                 style: GoogleFonts.inter(
@@ -164,7 +164,7 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
                     color: const Color(0xFF64748B),
                     fontWeight: FontWeight.w500),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 22),
               _buildFormInputField(
                 controller: _codigoController,
                 label: "CÓDIGO DE LOTE",
@@ -238,7 +238,7 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
                   ),
                 ),
               ],
-              const SizedBox(height: 35),
+              const SizedBox(height: 19),
               SizedBox(
                 width: double.infinity,
                 height: 56,

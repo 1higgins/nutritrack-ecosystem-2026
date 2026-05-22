@@ -3,8 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/lote_model.dart';
 import '../services/lote_service.dart';
 import 'lote_detail_screen.dart';
-import '../services/auth_service.dart';
-import 'login_screen.dart';
 
 class MonitorScreen extends StatefulWidget {
   final String token;
@@ -224,7 +222,6 @@ class _MonitorScreenState extends State<MonitorScreen>
 
           return Column(
             children: [
-              _buildModernAppBar(),
               _buildSystemStatsHeader(lotesActuales),
 
               // Pasamos el snapshot para validar la existencia de lotes mínimos antes de mostrar el botón
@@ -252,95 +249,6 @@ class _MonitorScreenState extends State<MonitorScreen>
             ],
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildModernAppBar() {
-    String displayRole;
-    switch (widget.role.toLowerCase()) {
-      case 'admin':
-        displayRole = "Administrador";
-        break;
-      case 'opa':
-        displayRole = "Operario";
-        break;
-      case 'opt':
-        displayRole = "Transportista";
-        break;
-      default:
-        displayRole = widget.role;
-    }
-
-    final String currentUserName = widget.userName;
-
-    return Container(
-      color: Colors.white,
-      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            height: 70,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Row(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 10.0),
-                  child: Row(
-                    children: [
-                      Container(
-                        height: 40,
-                        width: 40,
-                        decoration: const BoxDecoration(
-                            color: Color(0xFF0059FF), shape: BoxShape.circle),
-                        child: const Icon(Icons.person_outline_rounded,
-                            color: Colors.white, size: 21),
-                      ),
-                      const SizedBox(width: 11),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            currentUserName,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFF0F172A)),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            displayRole,
-                            style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF94A3B8)),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                Padding(
-                  padding: const EdgeInsets.only(right: 5.0),
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.logout_rounded,
-                      color: Color.fromARGB(255, 117, 125, 137),
-                      size: 23,
-                    ),
-                    // 📍 LLAMADA PREMIUM: Invoca el modal de confirmación con el contexto de la pantalla
-                    onPressed: () => _showLogoutBottomSheet(context),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(color: const Color(0xFFE2E8F0), height: 1),
-        ],
       ),
     );
   }
@@ -384,21 +292,56 @@ class _MonitorScreenState extends State<MonitorScreen>
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 20, 22, 14.5),
+      // Añadimos un pequeño padding superior extra para respetar la barra de estado del dispositivo
+      padding: EdgeInsets.fromLTRB(
+          22, MediaQuery.of(context).padding.top + 16, 22, 14.5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Inventario de Lotes",
-              style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF1E293B))),
+          // Row para alinear el título y tu nuevo botón en extremos opuestos
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                "Inventario",
+                style: GoogleFonts.inter(
+                    fontSize: 27,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF1E293B)),
+              ),
+              // 🏠 BOTÓN HOME (Estilo Turquesa con fondo Celeste Transparente)
+              GestureDetector(
+                onTap: () {
+                  // Regresa de forma limpia a la pantalla anterior (home_screen.dart)
+                  Navigator.pop(context);
+                },
+                child: Container(
+                  height: 42,
+                  width: 42,
+                  decoration: BoxDecoration(
+                    // Fondo celeste muy suave y transparente
+                    color: const Color(0xFFE0F2FE).withValues(alpha: 0.6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.home_rounded, // Ícono de casa amigable
+                    color: Color.fromARGB(
+                        255, 79, 182, 255), // Color turquesa estilizado
+                    size: 22,
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 5.5),
-          Text("Gestión de productos refrigerados",
-              style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: const Color(0xFF64748B))),
+          Text(
+            "Gestión de productos refrigerados",
+            style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF64748B)),
+          ),
           const SizedBox(height: 19),
           Row(
             children: [
@@ -507,16 +450,30 @@ class _MonitorScreenState extends State<MonitorScreen>
   }
 
   Widget _buildIndustrialLoteCard(Lote lote) {
-    // Normalizamos el estado actual para la evaluación condicional de bordes
+    // 1. Normalización del estado y extracción analítica de propiedades cromáticas y de iconografía
     final String estadoStr = lote.estadoActual.toUpperCase();
 
-    // Configuración dinámica del color del borde perimetral
-    Color borderColor;
-    if (estadoStr.contains('ESPERANDO')) {
-      borderColor = const Color(0xFF0059FF); // Borde azul industrial en espera
+    IconData statusIcon;
+    Color statusColor;
+
+    if (estadoStr.contains('CRITICO')) {
+      statusIcon = Icons.error_rounded;
+      statusColor = const Color(0xFFEF4444); // 🔴 Crítico (Rojo)
+    } else if (estadoStr.contains('ALERTA')) {
+      statusIcon = Icons.warning_rounded;
+      statusColor = const Color(0xFFF59E0B); // 🟡 Alerta (Amarillo/Ámbar)
+    } else if (estadoStr.contains('OPTIMO')) {
+      statusIcon = Icons.inventory_2_rounded;
+      statusColor = const Color.fromARGB(255, 14, 216, 51); // 🟢 Óptimo (Verde)
     } else {
-      borderColor = lote.colorEstado; // Borde dinámico según el riesgo
+      statusIcon = Icons.pending_actions_rounded;
+      statusColor = const Color(0xFF0059FF); // 🔵 Esperando (Azul Industrial)
     }
+
+    // Determinación del color del borde estructural perimetral
+    final Color borderColor = estadoStr.contains('ESPERANDO')
+        ? const Color(0xFF0059FF)
+        : lote.colorEstado;
 
     final String transportistaAsignado =
         (lote.custodioUsername != null && lote.custodioUsername!.isNotEmpty)
@@ -534,12 +491,15 @@ class _MonitorScreenState extends State<MonitorScreen>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 15,
-              offset: const Offset(0, 8)),
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
         ],
-        border:
-            Border.all(color: borderColor.withValues(alpha: 0.25), width: 1.5),
+        border: Border.all(
+          color: borderColor.withValues(alpha: 0.25),
+          width: 1.5,
+        ),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
@@ -547,136 +507,191 @@ class _MonitorScreenState extends State<MonitorScreen>
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (_) =>
-                    LoteDetailScreen(token: widget.token, loteId: lote.id)),
+              builder: (_) =>
+                  LoteDetailScreen(token: widget.token, loteId: lote.id),
+            ),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ==================================================================
-                // 📦 SECCIÓN ENCABEZADO: Icono de estado + Código + Producto + Badge
-                // ==================================================================
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    _buildStatusIndicator(lote),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  lote.codigoLote,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFF0F172A),
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 16.5,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              _buildMiniBadge(lote),
-                            ],
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            lote.producto.toUpperCase(),
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF64748B),
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ],
-                      ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ==================================================================
+              // ✨ SECCIÓN SUPERIOR: Banner Industrial de Estado + Badge Flotante (SIN BORDES)
+              // ==================================================================
+              Container(
+                height: 120, // Altura optimizada para la jerarquía visual
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.08),
+                  border: Border(
+                    bottom: BorderSide(
+                      color: statusColor.withValues(alpha: 0.12),
+                      width: 1.0,
                     ),
-                  ],
-                ),
-
-                // ==================================================================
-                // 🛠️ LÍNEA DIVISORIA INDUSTRIAL (CON OPACIDAD ALPHA PREMIUM)
-                // ==================================================================
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Divider(
-                    color: const Color(0xFFE2E8F0).withValues(alpha: 0.6),
-                    height: 1,
-                    thickness: 1,
                   ),
                 ),
-
-                // ==================================================================
-                // 📊 SECCIÓN MEDIAL: Datos técnicos (Ocupando todo el ancho)
-                // ==================================================================
-                const SizedBox(height: 7),
-
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Stack(
                   children: [
-                    // Columna 1: Límites de Temperatura
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildDataRow(
-                            icon: Icons.arrow_downward_rounded,
-                            iconColor: const Color(0xFF3B82F6),
-                            label: "Limite (Mín):",
-                            value: "${lote.tempMinIdeal.toStringAsFixed(1)}°C",
-                          ),
-                          const SizedBox(height: 7),
-                          _buildDataRow(
-                            icon: Icons.arrow_upward_rounded,
-                            iconColor: const Color(0xFFEF4444),
-                            label: "Limite (Máx):",
-                            value: "${lote.tempMaxIdeal.toStringAsFixed(1)}°C",
-                          ),
-                        ],
+                    // Icono de estado central perfectamente alineado
+                    Center(
+                      child: Icon(
+                        statusIcon,
+                        color: statusColor.withValues(alpha: 0.55),
+                        size: 52,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    // Columna 2: Temp Actual y Conductor
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildDataRow(
-                            icon: Icons.thermostat_rounded,
-                            iconColor: const Color(0xFFF59E0B),
-                            label: "Temp:",
-                            value: ultimaTemp,
-                            highlight: true,
-                          ),
-                          const SizedBox(height: 7),
-                          _buildDataRow(
-                            icon: Icons.local_shipping_rounded,
-                            iconColor: const Color.fromARGB(255, 82, 96, 114),
-                            label: "Conductor:",
-                            value: transportistaAsignado,
-                          ),
-                        ],
-                      ),
+
+                    // Badge posicionado en la esquina superior derecha
+                    Positioned(
+                      top: 14,
+                      right: 14,
+                      child: !estadoStr.contains('ESPERANDO')
+                          ? Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                // Se adapta dinámicamente al color del lote con opacidad sutil
+                                color: statusColor.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(12),
+                                // ❌ SE ELIMINÓ EL BORDE AQUÍ para un diseño más limpio
+                              ),
+                              child: Text(
+                                lote.entregado ? "ENTREGADO" : "EN TRÁNSITO",
+                                style: GoogleFonts.inter(
+                                  color:
+                                      statusColor, // Mismo color matriz del lote
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            )
+                          : const SizedBox
+                              .shrink(), // Oculto completamente en "Esperando"
                     ),
                   ],
                 ),
+              ),
 
-                // Espaciado armónico antes de la barra de progreso
-                const SizedBox(height: 16),
+              // ==================================================================
+              // 📊 SECCIÓN INFERIOR: Métricas y Datos Técnicos
+              // ==================================================================
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Encebezado interno de la tarjeta: Identificadores técnicos
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        _buildStatusIndicator(lote),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      lote.codigoLote,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF0F172A),
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 16.5,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _buildMiniBadge(lote),
+                                ],
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                lote.producto.toUpperCase(),
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF64748B),
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
 
-                // ==================================================================
-                // 📉 SECCIÓN INFERIOR: Barra de progreso extendida de extremo a extremo
-                // ==================================================================
-                _buildLinearProgress(lote),
-              ],
-            ),
+                    // Línea divisoria industrial con opacidad adaptativa
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Divider(
+                        color: const Color(0xFFE2E8F0).withValues(alpha: 0.6),
+                        height: 1,
+                        thickness: 1,
+                      ),
+                    ),
+
+                    const SizedBox(height: 7),
+
+                    // Matriz de Datos Técnicos (Límites, Temperatura y Custodio)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Columna Izquierda: Umbrales térmicos configurados
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildDataRow(
+                                icon: Icons.arrow_downward_rounded,
+                                iconColor: const Color(0xFF3B82F6),
+                                label: "Limite (Mín):",
+                                value:
+                                    "${lote.tempMinIdeal.toStringAsFixed(1)}°C",
+                              ),
+                              const SizedBox(height: 7),
+                              _buildDataRow(
+                                icon: Icons.arrow_upward_rounded,
+                                iconColor: const Color(0xFFEF4444),
+                                label: "Limite (Máx):",
+                                value:
+                                    "${lote.tempMaxIdeal.toStringAsFixed(1)}°C",
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Columna Derecha: Estado de telemetría en tiempo real
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildDataRow(
+                                icon: Icons.thermostat_rounded,
+                                iconColor: const Color(0xFFF59E0B),
+                                label: "Temp:",
+                                value: ultimaTemp,
+                                highlight: true,
+                              ),
+                              const SizedBox(height: 7),
+                              _buildDataRow(
+                                icon: Icons.local_shipping_rounded,
+                                iconColor:
+                                    const Color.fromARGB(255, 82, 96, 114),
+                                label: "Conductor:",
+                                value: transportistaAsignado,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -895,7 +910,7 @@ class _MonitorScreenState extends State<MonitorScreen>
                     Text(
                       "Filtros avanzados",
                       style: GoogleFonts.inter(
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                         fontSize: 25,
                         color: const Color(0xFF0F172A),
                       ),
@@ -1202,48 +1217,6 @@ class _MonitorScreenState extends State<MonitorScreen>
         style: TextStyle(
             color: lote.colorEstado, fontSize: 9, fontWeight: FontWeight.w900),
       ),
-    );
-  }
-
-  Widget _buildLinearProgress(Lote lote) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              "INTEGRIDAD",
-              style: GoogleFonts.inter(
-                  color: const Color(0xFF94A3B8),
-                  fontSize: 8,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.3),
-            ),
-            Text(lote.entregado ? "ENTREGADO" : "EN TRÁNSITO",
-                style: GoogleFonts.inter(
-                    color: lote.entregado
-                        ? const Color.fromARGB(255, 16, 216, 39)
-                        : const Color.fromARGB(255, 75, 142, 250),
-                    fontSize: 8,
-                    fontWeight: FontWeight.w700)),
-          ],
-        ),
-        const SizedBox(height: 5),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: LinearProgressIndicator(
-            value: lote.entregado ? 1.0 : 0.65,
-            backgroundColor: const Color(0xFFE2E8F0),
-            // 👇 CAMBIO AQUÍ: Elige tu color fijo o usa una condición como esta:
-            color: lote.entregado
-                ? const Color.fromARGB(255, 16, 216, 39)
-                : const Color.fromARGB(255, 190, 190, 190),
-            minHeight: 3.6,
-          ),
-        ),
-      ],
     );
   }
 
@@ -1681,130 +1654,6 @@ class _MonitorScreenState extends State<MonitorScreen>
   // ==========================================================================
   // 📍 NUEVA FUNCIÓN: DIÁLOGO DESPLEGABLE DE CIERRE DE SESIÓN (ESTILO PREMIUM)
   // ==========================================================================
-  void _showLogoutBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      elevation: 10,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-      ),
-      builder: (BuildContext bc) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 31),
-            child: Column(
-              mainAxisSize: MainAxisSize.min, // Ajuste compacto al contenido
-              children: [
-                // Indicador visual superior (Gris Slate sutil)
-                Container(
-                  width: 50,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color.fromARGB(255, 223, 223, 223),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                const SizedBox(height: 35),
-
-                // Mensaje de advertencia
-                Text(
-                  "¿Seguro que deseas cerrar sesión?",
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: const Color.fromARGB(255, 80, 80, 80),
-                  ),
-                ),
-                const SizedBox(height: 35),
-
-                // BOTÓN DE ACCIÓN CRÍTICA (Rojo Premium)
-                SizedBox(
-                  width: double.infinity,
-                  height: 30,
-                  child: TextButton(
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFFEF4444),
-                      padding: EdgeInsets
-                          .zero, // 📍 ELIMINA el espacio interno del texto
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    onPressed: () async {
-                      // 1. Ocultar el modal de inmediato
-                      Navigator.pop(context);
-
-                      // 2. Destruir token y rol en las SharedPreferences locales
-                      final authService = AuthService();
-                      await authService.logout();
-
-                      // 3. Purga completa de la pila de rutas hacia el Login
-                      if (context.mounted) {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const LoginScreen()),
-                          (route) =>
-                              false, // Impide el retorno con el botón físico "Atrás"
-                        );
-                      }
-                    },
-                    child: Text(
-                      "Cerrar sesión",
-                      style: GoogleFonts.inter(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 15),
-                // LÍNEA DIVISORA COMPACTA Y CONTROLADA
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 6, horizontal: 20),
-                  child: Divider(
-                    color: Color(0xFFF1F5F9), // Slate 100 muy tenue
-                    thickness: 2.0,
-                  ),
-                ),
-
-                const SizedBox(height: 15),
-
-                // BOTÓN DE CANCELACIÓN
-                SizedBox(
-                  width: double.infinity,
-                  height: 26,
-                  child: TextButton(
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF64748B),
-                      // 📍 CAMBIO 4: Agregamos esto para romper el margen del botón y que obedezca el centrado
-                      padding: EdgeInsets.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(
-                      "Cancelar",
-                      style: GoogleFonts.inter(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   Widget _buildMenuOption(
       {required IconData icon,
