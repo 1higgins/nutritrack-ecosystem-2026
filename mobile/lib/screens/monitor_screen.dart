@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
+
 import 'package:google_fonts/google_fonts.dart';
+
 import '../models/lote_model.dart';
+
 import '../services/lote_service.dart';
+
 import 'lote_detail_screen.dart';
 
 class MonitorScreen extends StatefulWidget {
   final String token;
+
   final String role;
+
   final String userName;
 
   const MonitorScreen({
@@ -23,36 +29,51 @@ class MonitorScreen extends StatefulWidget {
 class _MonitorScreenState extends State<MonitorScreen>
     with TickerProviderStateMixin {
   final LoteService _loteService = LoteService();
+
   late Future<List<Lote>> _futureLotes;
+
   String _selectedCategory = "Todos";
 
   final _searchController = TextEditingController();
 
   // --- CONTROLADORES INDUSTRIALES ---
+
   final _codigoController = TextEditingController();
+
   final _productoController = TextEditingController();
+
   final _tempMinController = TextEditingController();
+
   final _tempMaxController = TextEditingController();
+
   final _passwordLoteController = TextEditingController();
+
   final _nombreOpaController = TextEditingController();
 
   // --- NUEVAS VARIABLES DE ESTADO DE AUDITORÍA ---
+
   String _filterRangoFecha =
       "24h"; // Inicia por defecto en 24h para evitar saturación
+
   String _filterUsername = ""; // Almacena el OPA exacto buscado por el Admin
+
   bool _mostrarBotonQR = false;
 
   // Estado de carga para botones
+
   bool _isLoadingAction = false;
+
   String _currentFormType = ""; // Almacena: 'crear', 'vincular' o 'entregar'
 
   @override
   void initState() {
     super.initState();
+
     _loadData();
   }
 
   /// Carga de datos optimizada con persistencia de filtros para el Pull-to-Refresh
+
   void _loadData() {
     setState(() {
       _futureLotes = _loteService.fetchLotes(
@@ -67,12 +88,19 @@ class _MonitorScreenState extends State<MonitorScreen>
   @override
   void dispose() {
     _codigoController.dispose();
+
     _productoController.dispose();
+
     _tempMinController.dispose();
+
     _tempMaxController.dispose();
+
     _passwordLoteController.dispose();
+
     _nombreOpaController.dispose();
+
     _searchController.dispose();
+
     super.dispose();
   }
 
@@ -82,6 +110,7 @@ class _MonitorScreenState extends State<MonitorScreen>
     if (_codigoController.text.trim().isEmpty) {
       return "El Código/Nombre del lote es obligatorio";
     }
+
     if (_passwordLoteController.text.trim().length < 4) {
       return "La contraseña de seguridad debe tener al menos 4 caracteres";
     }
@@ -91,14 +120,19 @@ class _MonitorScreenState extends State<MonitorScreen>
         if (_productoController.text.trim().isEmpty) {
           return "Debe especificar el producto para el registro";
         }
+
         return _validarRangosTermicos();
+
       case "vincular":
         return null;
+
       case "entregar":
         if (_nombreOpaController.text.trim().isEmpty) {
           return "El nombre del OPA emisor es obligatorio para la entrega";
         }
+
         return null;
+
       default:
         return "Error de contexto: Acción no identificada";
     }
@@ -107,43 +141,59 @@ class _MonitorScreenState extends State<MonitorScreen>
   String? _validarRangosTermicos() {
     final double? min =
         double.tryParse(_tempMinController.text.replaceAll(',', '.'));
+
     final double? max =
         double.tryParse(_tempMaxController.text.replaceAll(',', '.'));
 
     if (min == null || max == null) {
       return "Las temperaturas deben ser números";
     }
+
     if (min > max) {
       return "Mínimo no puede ser mayor al máximo";
     }
+
     if (min == max) {
       return "Debe existir un rango operativo (Min ≠ Max)";
     }
+
     if (min < -50.0 || max > 100.0) {
       return "Rango fuera de límites del sensor (-50°C a 100°C)";
     }
+
     if (_passwordLoteController.text.length < 4) {
       return "Password debe tener min. 4 caracteres";
     }
+
     return null;
   }
 
   void _clearControllers() {
     _codigoController.clear();
+
     _productoController.clear();
+
     _tempMinController.clear();
+
     _tempMaxController.clear();
+
     _passwordLoteController.clear();
+
     _nombreOpaController.clear();
   }
 
   // ==========================================================================
+
   // LÓGICA DE FILTRADO COMBINADO LOCAL (Buscador + Chips)
+
   // Operando sobre el universo ya pre-filtrado por el Servidor
+
   // ==========================================================================
+
   List<Lote> _getFilteredLotes(List<Lote> allLotes) {
     return allLotes.where((lote) {
       final query = _searchController.text.toLowerCase();
+
       final matchesSearch = lote.codigoLote.toLowerCase().contains(query) ||
           lote.producto.toLowerCase().contains(query);
 
@@ -152,15 +202,19 @@ class _MonitorScreenState extends State<MonitorScreen>
       switch (_selectedCategory) {
         case "Entregados":
           return lote.entregado == true;
+
         case "Buenos":
           return !lote.entregado &&
               lote.estadoActual.toUpperCase().contains('OPTIMO');
+
         case "Alerta":
           return !lote.entregado &&
               lote.estadoActual.toUpperCase().contains('ALERTA');
+
         case "Critico":
           return !lote.entregado &&
               lote.estadoActual.toUpperCase().contains('CRITICO');
+
         case "Todos":
         default:
           return true;
@@ -172,9 +226,11 @@ class _MonitorScreenState extends State<MonitorScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 248, 248, 248),
+
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
 
       // 🟢 MODIFICACIÓN AQUÍ: Si es true se dibuja, si es false se oculta (null)
+
       floatingActionButton: !_mostrarBotonQR
           ? null
           : Padding(
@@ -215,6 +271,7 @@ class _MonitorScreenState extends State<MonitorScreen>
                 ),
               ),
             ),
+
       body: FutureBuilder<List<Lote>>(
         future: _futureLotes,
         builder: (context, snapshot) {
@@ -225,9 +282,11 @@ class _MonitorScreenState extends State<MonitorScreen>
               _buildSystemStatsHeader(lotesActuales),
 
               // Pasamos el snapshot para validar la existencia de lotes mínimos antes de mostrar el botón
+
               _buildSearchAndFilterSection(lotesActuales),
 
               const SizedBox(height: 10),
+
               Expanded(
                 child: RefreshIndicator(
                   color: const Color(0xFF3B82F6),
@@ -262,11 +321,14 @@ class _MonitorScreenState extends State<MonitorScreen>
     final List<Lote> lotesActivos = lotes.where((l) => !l.entregado).toList();
 
     int buenos = 0;
+
     int alerta = 0;
+
     int critico = 0;
 
     for (var lote in lotesActivos) {
       final String estado = lote.estadoActual.toUpperCase();
+
       if (estado.contains('OPTIMO')) {
         buenos++;
       } else if (estado.contains('ALERTA')) {
@@ -292,13 +354,17 @@ class _MonitorScreenState extends State<MonitorScreen>
   }) {
     return Container(
       width: double.infinity,
+
       // Añadimos un pequeño padding superior extra para respetar la barra de estado del dispositivo
+
       padding: EdgeInsets.fromLTRB(
           22, MediaQuery.of(context).padding.top + 16, 22, 14.5),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Row para alinear el título y tu nuevo botón en extremos opuestos
+
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -310,10 +376,13 @@ class _MonitorScreenState extends State<MonitorScreen>
                     fontWeight: FontWeight.w700,
                     color: const Color(0xFF1E293B)),
               ),
+
               // 🏠 BOTÓN HOME (Estilo Turquesa con fondo Celeste Transparente)
+
               GestureDetector(
                 onTap: () {
                   // Regresa de forma limpia a la pantalla anterior (home_screen.dart)
+
                   Navigator.pop(context);
                 },
                 child: Container(
@@ -321,20 +390,26 @@ class _MonitorScreenState extends State<MonitorScreen>
                   width: 42,
                   decoration: BoxDecoration(
                     // Fondo celeste muy suave y transparente
+
                     color: const Color(0xFFE0F2FE).withValues(alpha: 0.6),
+
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.home_rounded, // Ícono de casa amigable
+
                     color: Color.fromARGB(
                         255, 79, 182, 255), // Color turquesa estilizado
+
                     size: 22,
                   ),
                 ),
               ),
             ],
           ),
+
           const SizedBox(height: 5.5),
+
           Text(
             "Gestión de productos refrigerados",
             style: GoogleFonts.inter(
@@ -342,7 +417,9 @@ class _MonitorScreenState extends State<MonitorScreen>
                 fontWeight: FontWeight.w500,
                 color: const Color(0xFF64748B)),
           ),
+
           const SizedBox(height: 19),
+
           Row(
             children: [
               _buildStatCard(total, "Total", const Color(0xFF64748B),
@@ -380,10 +457,12 @@ class _MonitorScreenState extends State<MonitorScreen>
                 strokeWidth: 3, color: Color(0xFF3B82F6))),
       );
     }
+
     if (snapshot.hasError) {
       return SliverFillRemaining(
           child: _buildErrorState(snapshot.error.toString()));
     }
+
     if (!snapshot.hasData || snapshot.data!.isEmpty) {
       return SliverFillRemaining(child: _buildEmptyState());
     }
@@ -451,26 +530,33 @@ class _MonitorScreenState extends State<MonitorScreen>
 
   Widget _buildIndustrialLoteCard(Lote lote) {
     // 1. Normalización del estado y extracción analítica de propiedades cromáticas y de iconografía
+
     final String estadoStr = lote.estadoActual.toUpperCase();
 
     IconData statusIcon;
+
     Color statusColor;
 
     if (estadoStr.contains('CRITICO')) {
       statusIcon = Icons.error_rounded;
+
       statusColor = const Color(0xFFEF4444); // 🔴 Crítico (Rojo)
     } else if (estadoStr.contains('ALERTA')) {
       statusIcon = Icons.warning_rounded;
+
       statusColor = const Color(0xFFF59E0B); // 🟡 Alerta (Amarillo/Ámbar)
     } else if (estadoStr.contains('OPTIMO')) {
       statusIcon = Icons.inventory_2_rounded;
+
       statusColor = const Color.fromARGB(255, 14, 216, 51); // 🟢 Óptimo (Verde)
     } else {
       statusIcon = Icons.pending_actions_rounded;
+
       statusColor = const Color(0xFF0059FF); // 🔵 Esperando (Azul Industrial)
     }
 
     // Determinación del color del borde estructural perimetral
+
     final Color borderColor = estadoStr.contains('ESPERANDO')
         ? const Color(0xFF0059FF)
         : lote.colorEstado;
@@ -515,10 +601,14 @@ class _MonitorScreenState extends State<MonitorScreen>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // ==================================================================
+
               // ✨ SECCIÓN SUPERIOR: Banner Industrial de Estado + Badge Flotante (SIN BORDES)
+
               // ==================================================================
+
               Container(
                 height: 120, // Altura optimizada para la jerarquía visual
+
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.08),
                   border: Border(
@@ -528,9 +618,11 @@ class _MonitorScreenState extends State<MonitorScreen>
                     ),
                   ),
                 ),
+
                 child: Stack(
                   children: [
                     // Icono de estado central perfectamente alineado
+
                     Center(
                       child: Icon(
                         statusIcon,
@@ -540,17 +632,23 @@ class _MonitorScreenState extends State<MonitorScreen>
                     ),
 
                     // Badge posicionado en la esquina superior derecha
+
                     Positioned(
                       top: 14,
+
                       right: 14,
+
                       child: !estadoStr.contains('ESPERANDO')
                           ? Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
                                 // Se adapta dinámicamente al color del lote con opacidad sutil
+
                                 color: statusColor.withValues(alpha: 0.15),
+
                                 borderRadius: BorderRadius.circular(12),
+
                                 // ❌ SE ELIMINÓ EL BORDE AQUÍ para un diseño más limpio
                               ),
                               child: Text(
@@ -558,8 +656,11 @@ class _MonitorScreenState extends State<MonitorScreen>
                                 style: GoogleFonts.inter(
                                   color:
                                       statusColor, // Mismo color matriz del lote
+
                                   fontSize: 9,
+
                                   fontWeight: FontWeight.w800,
+
                                   letterSpacing: 0.5,
                                 ),
                               ),
@@ -572,14 +673,18 @@ class _MonitorScreenState extends State<MonitorScreen>
               ),
 
               // ==================================================================
+
               // 📊 SECCIÓN INFERIOR: Métricas y Datos Técnicos
+
               // ==================================================================
+
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Encebezado interno de la tarjeta: Identificadores técnicos
+
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
@@ -624,6 +729,7 @@ class _MonitorScreenState extends State<MonitorScreen>
                     ),
 
                     // Línea divisoria industrial con opacidad adaptativa
+
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       child: Divider(
@@ -636,10 +742,12 @@ class _MonitorScreenState extends State<MonitorScreen>
                     const SizedBox(height: 7),
 
                     // Matriz de Datos Técnicos (Límites, Temperatura y Custodio)
+
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Columna Izquierda: Umbrales térmicos configurados
+
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -662,8 +770,11 @@ class _MonitorScreenState extends State<MonitorScreen>
                             ],
                           ),
                         ),
+
                         const SizedBox(width: 12),
+
                         // Columna Derecha: Estado de telemetría en tiempo real
+
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -733,11 +844,17 @@ class _MonitorScreenState extends State<MonitorScreen>
   }
 
   // ==========================================================================
+
   // 🔍 SECCIÓN DE BUSCADOR CON BOTÓN DE FILTROS INTEGRADO (SIMETRÍA INDUSTRIAL)
+
   // ==========================================================================
+
   // ==========================================================================
+
   // 🔍 SECCIÓN DE BUSCADOR CON BOTÓN DE FILTROS INTEGRADO (SIEMPRE VISIBLE)
+
   // ==========================================================================
+
   Widget _buildSearchAndFilterSection(List<Lote>? lotes) {
     return Container(
       padding: const EdgeInsets.only(left: 20, right: 20, top: 5, bottom: 0),
@@ -746,6 +863,7 @@ class _MonitorScreenState extends State<MonitorScreen>
           Row(
             children: [
               // El Buscador se expande para tomar el espacio disponible
+
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
@@ -759,6 +877,7 @@ class _MonitorScreenState extends State<MonitorScreen>
                     child: Builder(
                       builder: (context) {
                         final bool isFocused = Focus.of(context).hasFocus;
+
                         return TextField(
                           controller: _searchController,
                           onChanged: (value) => setState(() {}),
@@ -787,7 +906,9 @@ class _MonitorScreenState extends State<MonitorScreen>
               ),
 
               // 🟢 EL BOTÓN AHORA QUEDA LIBERADO DE CONDICIONES (SIEMPRE SE RENDERIZA)
+
               const SizedBox(width: 8),
+
               Container(
                 height: 48,
                 width: 48,
@@ -800,6 +921,7 @@ class _MonitorScreenState extends State<MonitorScreen>
                         ? const Color(0xFF0059FF).withValues(
                             alpha:
                                 0.25) // Se ilumina en azul si hay filtros activos
+
                         : const Color(0xFFE2E8F0),
                     width: (_filterUsername.isNotEmpty ||
                             _filterRangoFecha != "24h")
@@ -816,15 +938,18 @@ class _MonitorScreenState extends State<MonitorScreen>
                         : const Color(0xFF64748B),
                     size: 22,
                   ),
+
                   onPressed: () =>
                       _openAdvancedFilterModal(lotes), // Siempre se puede abrir
                 ),
               ),
             ],
           ),
+
           const SizedBox(height: 6.5),
 
           // --- CATEGORÍAS (CHIPS) ---
+
           Row(
             children: [
               _buildFilterChip(

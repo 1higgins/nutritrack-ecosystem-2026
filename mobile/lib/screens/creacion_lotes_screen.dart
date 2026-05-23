@@ -39,8 +39,11 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
   }
 
   // Gestión de estados reactivos en UI
+  // Gestión de estados reactivos en UI
   bool _isLoadingAction = false;
+  bool _obscurePassword = true;
   String? _localError;
+  String? _successMessage; // 🌟 Nuevo rastreador de estado exitoso
 
   @override
   void dispose() {
@@ -85,16 +88,23 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
   }
 
   // Hilo de ejecución asíncrono hacia FastAPI
+  // Hilo de ejecución asíncrono hacia FastAPI
   Future<void> _ejecutarRegistroLote() async {
     final errorValidacion = _validarFormularioLote();
     if (errorValidacion != null) {
-      setState(() => _localError = errorValidacion);
+      setState(() {
+        _localError = errorValidacion;
+        _successMessage =
+            null; // Limpia éxitos viejos si el nuevo intento falla
+      });
       return;
     }
 
     setState(() {
       _isLoadingAction = true;
       _localError = null;
+      _successMessage =
+          null; // Limpia la pantalla al iniciar una nueva petición
     });
 
     try {
@@ -103,7 +113,7 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
       final double max =
           double.parse(_tempMaxController.text.replaceAll(',', '.'));
 
-      // Payload mapeado de forma idéntica a schemas.LoteCreate de Pydantic (Snake_case)
+      // Payload mapeado de forma idéntica a schemas.LoteCreate de Pydantic
       final Map<String, dynamic> payloadLote = {
         "codigo_lote": _codigoController.text.trim(),
         "producto": _productoController.text.trim(),
@@ -116,16 +126,26 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
       await _loteService.createLote(widget.token, payloadLote);
 
       if (mounted) {
-        setState(() => _isLoadingAction = false);
-        // Retornamos true para notificar a monitor_screen.dart que debe re-ejecutar fetchLotes
-        Navigator.pop(context, true);
+        setState(() {
+          _isLoadingAction = false;
+          _localError = null;
+          // Inyectamos el mensaje sin alterar el control de la pantalla
+          _successMessage = "Lote y parámetros térmicos registrados con éxito.";
+
+          // Limpieza profesional para dejar el formulario listo para el SIGUIENTE lote
+          _codigoController.clear();
+          _productoController.clear();
+          _tempMinController.clear();
+          _tempMaxController.clear();
+          _passwordLoteController.clear();
+        });
       }
     } on LoteServiceException catch (e) {
       if (mounted) {
         setState(() {
           _isLoadingAction = false;
-          _localError = e
-              .message; // Captura exacta del detail de la HTTP Exception de FastAPI
+          _localError = e.message; // Captura exacta del detail de FastAPI
+          _successMessage = null;
         });
       }
     } catch (e) {
@@ -133,6 +153,7 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
         setState(() {
           _isLoadingAction = false;
           _localError = "Error inesperado de procesamiento en la app.";
+          _successMessage = null;
         });
       }
     }
@@ -242,41 +263,36 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
               // 4. CONTRASEÑA DE SEGURIDAD
               _buildFormInputField(
                 controller: _passwordLoteController,
-                focusNode:
-                    _passwordFocus, // 👈 Su propio nodo asignado correctamente
+                focusNode: _passwordFocus,
                 label: "CONTRASEÑA DE SEGURIDAD",
                 icon: Icons.lock_outline_rounded,
-                isPassword: true,
+                isPasswordField: true,
                 enabled: !_isLoadingAction,
               ),
+              // 📍 SECCIÓN DE FEEDBACK INTEGRADA CON COMPORTAMIENTO VINCULACIÓN 📍
+
+              // --- BANNER DE ERROR ---
               if (_localError != null) ...[
-                const SizedBox(height: 20),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color.fromARGB(255, 220, 78, 78)
-                        .withAlpha((0.08 * 255).round()),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline_rounded,
-                          color: Colors.redAccent, size: 18),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          _localError!,
-                          style: GoogleFonts.inter(
-                              color: Colors.redAccent,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
+                const SizedBox(height: 18),
+                _buildFeedbackBanner(
+                  message: _localError!,
+                  isError: true,
+                  icon: Icons.error_outline_rounded,
+                  color: Colors.redAccent,
                 ),
               ],
+
+              // --- BANNER DE ÉXITO VERDE ---
+              if (_successMessage != null) ...[
+                const SizedBox(height: 18),
+                _buildFeedbackBanner(
+                  message: _successMessage!,
+                  isError: false,
+                  icon: Icons.check_circle_outline_rounded,
+                  color: const Color(0xFF10B981),
+                ),
+              ],
+
               const SizedBox(height: 19),
               // 4. BOTÓN DE REGISTRO MINIMALISTA (OUTLINED)
               SizedBox(
@@ -328,7 +344,7 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
     required IconData icon,
     required FocusNode focusNode, // 📍 1. NUEVO PARAMETRO REQUERIDO
     bool isNumber = false,
-    bool isPassword = false,
+    bool isPasswordField = false,
     bool enabled = true,
   }) {
     return Container(
@@ -346,7 +362,7 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
       child: TextField(
         controller: controller,
         focusNode: focusNode, // 📍 2. ASIGNAMOS EL NODE AL TEXTFIELD
-        obscureText: isPassword,
+        obscureText: isPasswordField == true && _obscurePassword,
         enabled: enabled,
         keyboardType: isNumber
             ? const TextInputType.numberWithOptions(decimal: true)
@@ -356,15 +372,36 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
             fontWeight: FontWeight.w600,
             color: const Color(0xFF0F172A)),
         decoration: InputDecoration(
-          // 📍 3. TRUCO MAESTRO: Si está enfocado, el hint se vuelve vacío "" de inmediato
           hintText: focusNode.hasFocus ? "" : label,
           hintStyle: GoogleFonts.inter(
               color: const Color(0xFF64748B),
               fontSize: 11,
               fontWeight: FontWeight.w500,
               letterSpacing: 0.5),
-          prefixIcon: Icon(icon,
-              size: 20, color: const Color.fromARGB(255, 59, 130, 246)),
+          prefixIcon: Icon(
+            icon,
+            size: 20,
+            color: const Color.fromARGB(255, 59, 130, 246),
+          ),
+          suffixIcon: isPasswordField
+              ? Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: const Color(0xFF94A3B8),
+                      size: 20,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
+                )
+              : null,
           filled: true,
           fillColor: enabled ? Colors.white : const Color(0xFFF1F5F9),
           border: OutlineInputBorder(
@@ -373,6 +410,39 @@ class _CreacionLotesScreenState extends State<CreacionLotesScreen> {
           contentPadding:
               const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFeedbackBanner({
+    required String message,
+    required bool isError,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: color.withAlpha((0.08 * 255).round()),
+        borderRadius: BorderRadius.circular(12),
+        border:
+            Border.all(color: color.withAlpha((0.3 * 255).round()), width: 1),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: GoogleFonts.inter(
+                color: isError ? Colors.redAccent : const Color(0xFF065F46),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

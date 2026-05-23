@@ -32,8 +32,10 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
     _passwordFocus.addListener(() => setState(() {}));
   }
 
+  bool _obscurePassword = true;
   bool _isLoadingAction = false;
   String? _localError;
+  String? _successMessage;
 
   @override
   void dispose() {
@@ -47,11 +49,11 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
   }
 
   String? _validarFormularioVinculo() {
-    if (_nombreOpaController.text.trim().isEmpty) {
-      return "El nombre del OPA (Emisor) es requerido.";
-    }
     if (_codigoController.text.trim().isEmpty) {
       return "El código del lote es requerido.";
+    }
+    if (_nombreOpaController.text.trim().isEmpty) {
+      return "El nombre del OPA (Emisor) es requerido.";
     }
     if (_passwordLoteController.text.trim().isEmpty) {
       return "La contraseña de seguridad es requerida.";
@@ -62,13 +64,17 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
   Future<void> _ejecutarVinculacion() async {
     final errorValidacion = _validarFormularioVinculo();
     if (errorValidacion != null) {
-      setState(() => _localError = errorValidacion);
+      setState(() {
+        _localError = errorValidacion;
+        _successMessage = null;
+      });
       return;
     }
 
     setState(() {
       _isLoadingAction = true;
       _localError = null;
+      _successMessage = null;
     });
 
     try {
@@ -81,14 +87,31 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
       await _loteService.vincularLote(widget.token, payloadVinculo);
 
       if (mounted) {
-        setState(() => _isLoadingAction = false);
-        Navigator.pop(context, true);
+        setState(() {
+          _isLoadingAction = false;
+          _localError = null;
+          _successMessage = "Conexión logística establecida con éxito.";
+
+          _codigoController.clear();
+          _nombreOpaController.clear();
+          _passwordLoteController.clear();
+        });
       }
     } on LoteServiceException catch (e) {
       if (mounted) {
         setState(() {
           _isLoadingAction = false;
-          _localError = e.message;
+
+          // 🌟 AQUÍ ESTÁ EL CAMBIO QUE EVALÚA EL ERROR DEL BACKEND 🌟
+          if (e.message.toLowerCase().contains("expirada") ||
+              e.message.toLowerCase().contains("not found") ||
+              e.message.toLowerCase().contains("invalid")) {
+            _localError = "Credenciales incorrectas o el lote no existe.";
+          } else {
+            _localError = e.message;
+          }
+
+          _successMessage = null;
         });
       }
     } catch (e) {
@@ -96,6 +119,7 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
         setState(() {
           _isLoadingAction = false;
           _localError = "Error inesperado al intentar enlazar la custodia.";
+          _successMessage = null;
         });
       }
     }
@@ -176,38 +200,36 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
                 focusNode: _passwordFocus,
                 label: "CONTRASEÑA DE SEGURIDAD",
                 icon: Icons.lock_outline_rounded,
-                isPassword: true,
+                isPassword: _obscurePassword,
                 enabled: !_isLoadingAction,
               ),
 
+              // 📍 NUEVA UBICACIÓN: BANNERS DE FEEDBACK UBICADOS ABAJO 📍
+
+              // --- BANNER DE ERROR ---
               if (_localError != null) ...[
-                const SizedBox(height: 20),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.redAccent.withAlpha((0.08 * 255).round()),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline_rounded,
-                          color: Colors.redAccent, size: 18),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          _localError!,
-                          style: GoogleFonts.inter(
-                              color: Colors.redAccent,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
+                const SizedBox(height: 18),
+                _buildFeedbackBanner(
+                  message: _localError!,
+                  isError: true,
+                  icon: Icons.error_outline_rounded,
+                  color: Colors.redAccent,
                 ),
               ],
+
+              // --- BANNER DE ÉXITO VERDE ---
+              if (_successMessage != null) ...[
+                const SizedBox(height: 18),
+                _buildFeedbackBanner(
+                  message: _successMessage!,
+                  isError: false,
+                  icon: Icons.check_circle_outline_rounded,
+                  color: const Color(0xFF10B981),
+                ),
+              ],
+
               const SizedBox(height: 19),
+
               // --- BOTÓN PRINCIPAL DE VÍNCULO MINIMALISTA (OUTLINED) ---
               SizedBox(
                 width: double.infinity,
@@ -215,12 +237,9 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(
-                        color: Color.fromARGB(255, 59, 130, 246),
-                        width: 2), // Borde negro
-                    foregroundColor: const Color(
-                        0xFF0F172A), // Efecto de pulsación (ripple) negro
-                    backgroundColor:
-                        const Color.fromARGB(255, 255, 255, 255), // Sin fondo
+                        color: Color.fromARGB(255, 59, 130, 246), width: 2),
+                    foregroundColor: const Color(0xFF0F172A),
+                    backgroundColor: const Color.fromARGB(255, 255, 255, 255),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -232,8 +251,7 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
                           height: 24,
                           width: 24,
                           child: CircularProgressIndicator(
-                            color:
-                                Color(0xFF0F172A), // Indicador de carga negro
+                            color: Color(0xFF0F172A),
                             strokeWidth: 2.5,
                           ),
                         )
@@ -241,8 +259,7 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
                           "ESTABLECER VÍNCULO",
                           style: GoogleFonts.inter(
                             fontWeight: FontWeight.w700,
-                            color: const Color.fromARGB(
-                                255, 59, 130, 246), // Letras negras
+                            color: const Color.fromARGB(255, 59, 130, 246),
                             fontSize: 15,
                             letterSpacing: 0.3,
                           ),
@@ -285,8 +302,7 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
             fontWeight: FontWeight.w600,
             color: const Color(0xFF0F172A)),
         decoration: InputDecoration(
-          hintText:
-              focusNode.hasFocus ? "" : label, // Usamos solo hintText limpio
+          hintText: focusNode.hasFocus ? "" : label,
           hintStyle: GoogleFonts.inter(
               color: const Color(0xFF64748B),
               fontSize: 11,
@@ -294,6 +310,27 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
               letterSpacing: 0.5),
           prefixIcon: Icon(icon,
               size: 20, color: const Color.fromARGB(255, 59, 130, 246)),
+
+          // --- NUEVA SECCIÓN DE SUFFIXICON ---
+          // Solo si la etiqueta contiene "CONTRASEÑA", inyectamos el botón del ojito
+          suffixIcon: label.contains("CONTRASEÑA")
+              ? Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: IconButton(
+                    icon: Icon(
+                      isPassword
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: const Color(0xFF94A3B8),
+                      size: 20,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
+                  ),
+                )
+              : null,
+          // ------------------------------------
+
           filled: true,
           fillColor: enabled ? Colors.white : const Color(0xFFF1F5F9),
           border: OutlineInputBorder(
@@ -302,6 +339,39 @@ class _VinculacionScreenState extends State<VinculacionScreen> {
           contentPadding:
               const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFeedbackBanner({
+    required String message,
+    required bool isError,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: color.withAlpha((0.08 * 255).round()),
+        borderRadius: BorderRadius.circular(12),
+        border:
+            Border.all(color: color.withAlpha((0.3 * 255).round()), width: 1),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: GoogleFonts.inter(
+                color: isError ? Colors.redAccent : const Color(0xFF065F46),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

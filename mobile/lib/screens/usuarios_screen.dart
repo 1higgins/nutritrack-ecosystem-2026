@@ -185,7 +185,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                         return "Debe contener entre 4 y 20 caracteres.";
                       }
                       if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(cleaned)) {
-                        return "Solo se permiten letras, números y guiones bajos (_).";
+                        return "Solo se permiten letras, números y guiones bajos";
                       }
                       return null;
                     },
@@ -203,16 +203,20 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                     decoration: _buildInputDecoration(
                       hint: "Mínimo 6 caracteres",
                       prefixIcon: Icons.lock_outline_rounded,
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          color: const Color(0xFF94A3B8),
-                          size: 20,
+                      // El Padding empuja el ojito hacia la izquierda separándolo del borde derecho
+                      suffixIcon: Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: const Color(0xFF94A3B8),
+                            size: 20,
+                          ),
+                          onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword),
                         ),
-                        onPressed: () => setState(
-                            () => _obscurePassword = !_obscurePassword),
                       ),
                     ),
                     validator: (value) {
@@ -369,6 +373,15 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
       filled: true,
       fillColor: Colors.white,
       contentPadding: const EdgeInsets.symmetric(vertical: 16),
+
+      // 🌟 ESTA LÍNEA ES LA MAGIA: Controla el espacio interno del texto de error
+      // Un height de 1.6 o 1.8 le da ese "aire" limpio para que no se pegue al contenedor blanco
+      errorStyle: GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        height: 2,
+      ),
+
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,

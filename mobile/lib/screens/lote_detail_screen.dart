@@ -145,7 +145,7 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
                       // 3. BOTÓN AZUL DE TEMPERATURA
                       Positioned(
                         right: 135,
-                        top: 11.5, // 3. SE SUBIÓ DE 39.5 A 12.0
+                        top: 9.5, // 3. SE SUBIÓ DE 39.5 A 12.0
                         child: Container(
                           width: 38,
                           height: 38,
@@ -165,8 +165,8 @@ class _LoteDetailScreenState extends State<LoteDetailScreen> {
 
                       Positioned(
                         left:
-                            309.2, // 👈 Ajusta este número para separarlo del botón azul a tu gusto
-                        top: 9.0, // Centrado armónico por su tamaño de 42
+                            306.6, // 👈 Ajusta este número para separarlo del botón azul a tu gusto
+                        top: 8.0, // Centrado armónico por su tamaño de 42
                         child: GestureDetector(
                           onTap: () {
                             // Acción funcional para regresar a la pantalla anterior (monitor_screen.dart)

@@ -286,8 +286,7 @@ def marcar_como_entregado(
 ):
     """
     CIERRE DE CUSTODIA CON HANDSHAKE BLINDADO: 
-    Valida roles, contraseñas y exige obligatoriamente que el lote cuente 
-    con al menos una lectura de sensor registrada antes de cerrarse.
+    Valida roles, contraseñas, exige historial térmico y la vinculación obligatoria de un OPT.
     """
     # 1. Búsqueda exhaustiva del lote
     lote = db.query(models.Lote).filter(models.Lote.codigo_lote == datos_entrega.codigo_lote).first()
@@ -308,9 +307,8 @@ def marcar_como_entregado(
         raise HTTPException(status_code=400, detail="Operación redundante: El lote ya figura como entregado.")
 
     # ==========================================================================
-    # 🛑 CONTROL DE INTEGRIDAD TÉRMICA (SOLUCIÓN AL FALLO DE "SIN DATOS")
+    # 🛑 CONTROL DE INTEGRIDAD TÉRMICA
     # ==========================================================================
-    # Contamos de manera ultra rápida cuántas lecturas tiene asociadas este lote
     conteo_telemetria = db.query(models.Telemetria).filter(models.Telemetria.lote_id == lote.id).count()
 
     if conteo_telemetria == 0:
@@ -321,6 +319,15 @@ def marcar_como_entregado(
                 f"y no registra ninguna medición de temperatura. No se puede finalizar un lote sin historial térmico."
             )
         )
+
+    # ==========================================================================
+    # 🛑 NUEVO: CONTROL DE ASIGNACIÓN OBLIGATORIA DE TRANSPORTE (OPT)
+    # ==========================================================================
+    if lote.custodio_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Error logístico: No se puede finalizar la entrega. El lote no tiene ningún Operario de Transporte (OPT) vinculado en custodia."
+        )
     # ==========================================================================
 
     # 2. Validación de permisos de usuario (Roles autorizados)
@@ -330,7 +337,7 @@ def marcar_como_entregado(
             detail="Seguridad: El rol actual no tiene autorización para manipular estados logísticos."
         )
 
-    # Si es un transportista (OPT), debe ser el custodio asignado
+    # Si es un transportista (OPT), debe ser obligatoriamente el custodio asignado
     if current_user.role == "OPT" and lote.custodio_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
