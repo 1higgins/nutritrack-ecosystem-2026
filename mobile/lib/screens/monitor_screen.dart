@@ -641,13 +641,13 @@ class _MonitorScreenState extends State<MonitorScreen>
                       child: !estadoStr.contains('ESPERANDO')
                           ? Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 6),
+                                  horizontal: 12, vertical: 4),
                               decoration: BoxDecoration(
                                 // Se adapta dinámicamente al color del lote con opacidad sutil
 
-                                color: statusColor.withValues(alpha: 0.15),
+                                color: statusColor.withValues(alpha: 0.1),
 
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(20),
 
                                 // ❌ SE ELIMINÓ EL BORDE AQUÍ para un diseño más limpio
                               ),
@@ -659,7 +659,7 @@ class _MonitorScreenState extends State<MonitorScreen>
 
                                   fontSize: 9,
 
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w700,
 
                                   letterSpacing: 0.5,
                                 ),
@@ -1339,8 +1339,8 @@ class _MonitorScreenState extends State<MonitorScreen>
           borderRadius: BorderRadius.circular(20)),
       child: Text(
         lote.estadoActual,
-        style: TextStyle(
-            color: lote.colorEstado, fontSize: 9, fontWeight: FontWeight.w900),
+        style: GoogleFonts.inter(
+            color: lote.colorEstado, fontSize: 9, fontWeight: FontWeight.w700),
       ),
     );
   }

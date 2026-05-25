@@ -43,7 +43,8 @@ def registrar_medicion(
     
     mensaje_diagnostico = alerts.generar_diagnostico(
         data.temperatura, data.humedad,
-        lote.temp_min_ideal, lote.temp_max_ideal
+        lote.temp_min_ideal, lote.temp_max_ideal,
+        nuevo_estado # <--- ✅ CAMBIO CRÍTICO OBLIGATORIOaquí
     )
     
     # Actualización del activo (Atomic Update)
