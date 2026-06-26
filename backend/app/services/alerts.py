@@ -8,6 +8,10 @@ Motor de decisiones con tolerancia a fallos y auditoría diagnóstica.
 STATUS_OPTIMO = "OPTIMO"
 STATUS_ALERTA = "ADVERTENCIA"
 STATUS_CRITICO = "CRITICO"
+<<<<<<< Updated upstream
+=======
+STATUS_ESPERANDO = "ESPERANDO" 
+>>>>>>> Stashed changes
 
 MARGEN_CRITICO_TEMP = 3.0  
 HUMEDAD_MIN_ACEPTABLE = 20.0 

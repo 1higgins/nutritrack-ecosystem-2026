@@ -23,8 +23,8 @@ def startup_event():
     finally:
         db.close()
 
-# --- CONFIGURACIÓN PROFESIONAL DE CORS ---
-# Permitimos localhost en distintos puertos para cubrir Flutter Web (Chrome)
+# CORS
+# Permitimos localhost en distintos puertos para cubrir Flutter Web
 # y entornos de desarrollo locales.
 origins = [
     "http://localhost",

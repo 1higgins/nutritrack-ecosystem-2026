@@ -61,4 +61,12 @@ class Telemetria(Base):
     fecha_registro = Column(DateTime, default=datetime.datetime.utcnow)
     
     lote_perteneciente = relationship("Lote", back_populates="telemetrias")
+<<<<<<< Updated upstream
     registrador = relationship("User", back_populates="mediciones_realizadas")
+=======
+    registrador = relationship("User", back_populates="mediciones_realizadas")
+
+# Este índice le permite a SQLite resolver la query de filtros de la pantalla de detalles
+# buscando directamente por lote e intervalo de tiempo de forma combinada.
+Index("idx_lote_fecha", Telemetria.lote_id, Telemetria.fecha_registro)
+>>>>>>> Stashed changes

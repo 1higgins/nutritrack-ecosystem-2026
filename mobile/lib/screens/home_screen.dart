@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+<<<<<<< Updated upstream
 import 'registro_screen.dart';
 import 'inventario_screen.dart';
 import 'temperatura_screen.dart';
@@ -6,6 +7,18 @@ import 'temperatura_screen.dart';
 // ─── HomeScreen ───────────────────────────────────────────────────────────────
 class HomeScreen extends StatelessWidget {
   final String username;
+=======
+import 'package:flutter/services.dart';
+import 'login_screen.dart';
+import '../services/auth_service.dart';
+import 'entregarLotes_screen.dart';
+import 'crearLotes_screen.dart';
+import 'inventarioLotes.dart';
+import 'crearUsuarios_screen.dart';
+import 'vincularEntrega_screen.dart';
+
+class HomeScreen extends StatefulWidget {
+>>>>>>> Stashed changes
   final String token;
   const HomeScreen({super.key, required this.username, required this.token});
 
@@ -38,6 +51,7 @@ class HomeScreen extends StatelessWidget {
     ),
   ];
 
+<<<<<<< Updated upstream
   static const _cards = [
     _CardData(
       imagePlaceholderColor: Color(0xFFFFEEED),
@@ -128,6 +142,267 @@ class HomeScreen extends StatelessWidget {
                                     Icons.logout,
                                     color: Colors.red,
                                     size: 20,
+=======
+class _HomeScreenState extends State<HomeScreen> {
+  // Paleta de colores Premium basados en el diseño original
+  static const Color bgColor = Color(0xFFF4F6F9); // Gris azulado ultra claro
+  static const Color textMain =
+      Color(0xFF0F172A); // Slate oscuro para jerarquía principal
+  static const Color textSecondary =
+      Color(0xFF64748B); // Slate medio para subtítulos
+
+  void _showLogoutBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      builder: (BuildContext bottomSheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 25, 24,
+                32), // Equilibra el espacio blanco sin romper la simetría
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 📌 Indicador visual superior (Pill ploma integrada al techo)
+                Container(
+                  width: 60,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 36), // Distancia exacta hacia el icono
+
+                // 📌 Icono premium circular fusionado
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFEF2F2), // Fondo rojo sutil
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.logout_rounded,
+                    color: Color(0xFFEF4444), // Rojo de alerta
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(height: 34),
+
+                // 📌 Textos del Diálogo fusionados en armonía
+                const Text(
+                  "¿Seguro que deseas cerrar sesión?",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w500,
+                    color: textMain,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  "Tendrás que volver a ingresar tus credenciales para acceder al ecosistema de Nutritrack.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: textSecondary,
+                    height: 1.4,
+                    letterSpacing: -0.15,
+                  ),
+                ),
+                const SizedBox(
+                    height:
+                        36), // Espacio de desahogo antes de las acciones de la captura
+
+                // 📌 BOTÓN 1: Cerrar Sesión (Estilo interactivo central)
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () async {
+                      Navigator.pop(bottomSheetContext);
+                      final AuthService authService = AuthService();
+                      await authService.logout();
+
+                      if (context.mounted) {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LoginScreen(),
+                          ),
+                          (route) => false,
+                        );
+                      }
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      foregroundColor: const Color(0xFFEF4444),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Text(
+                      "Cerrar sesión",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: -0.25,
+                        color: Color(
+                            0xFFEF4444), // Rojo corporativo exacto de la captura
+                      ),
+                    ),
+                  ),
+                ),
+
+                //Línea Divisoria
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 3, horizontal: 20),
+                  child: Divider(
+                    color: const Color(0xFFE2E8F0).withValues(alpha: 0.6),
+                    thickness: 1,
+                  ),
+                ),
+
+                // 📌 BOTÓN 2: Cancelar (Estilo plano inferior de la captura)
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(bottomSheetContext),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      foregroundColor: textSecondary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Text(
+                      "Cancelar",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: -0.25,
+                        color:
+                            textSecondary, // Gris equilibrado para menor jerarquía
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    String displayRole;
+
+    // Convertimos a minúsculas el string largo que viene del login
+    switch (widget.role.toLowerCase()) {
+      case 'administrador':
+      case 'admin':
+        displayRole = "Administrador";
+        break;
+      case 'operario':
+      case 'opa':
+        displayRole = "Operario";
+        break;
+      case 'transportista':
+      case 'opt':
+        displayRole = "Transportista";
+        break;
+      default:
+        displayRole = widget.role;
+    }
+
+    final String currentUserName = widget.userName;
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: bgColor,
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Builder(
+                  builder: (context) {
+                    const double topTexts = 20.0;
+                    const double topAvatar = 45.0;
+                    const double rightAvatar = 5.0;
+
+                    return SizedBox(
+                      height: 123,
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            top: topTexts,
+                            left: 0,
+                            right: 70,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Hola de nuevo,",
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    color: textSecondary,
+                                    fontWeight: FontWeight.w400,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  currentUserName,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 34,
+                                    fontWeight: FontWeight.w700,
+                                    color: textMain,
+                                    letterSpacing: -1.4,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  displayRole,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w400,
+                                    letterSpacing: -0.3,
+                                    color: textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Positioned(
+                            top: topAvatar,
+                            right: rightAvatar,
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () => _showLogoutBottomSheet(context),
+                                customBorder: const CircleBorder(),
+                                splashColor:
+                                    Colors.white.withValues(alpha: 0.3),
+                                highlightColor:
+                                    Colors.white.withValues(alpha: 0.15),
+                                child: Container(
+                                  height: 48,
+                                  width: 48,
+                                  decoration: const BoxDecoration(
+                                    color: Color.fromARGB(255, 69, 162, 255),
+                                    shape: BoxShape.circle,
+>>>>>>> Stashed changes
                                   ),
                                   SizedBox(width: 10),
                                   Text(
@@ -162,9 +437,138 @@ class HomeScreen extends StatelessWidget {
                               ),
                             ),
                           ),
+<<<<<<< Updated upstream
                         ),
                       ],
                     ),
+=======
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              //CÁPSULAS HORIZONTALES FIJAS
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                child: Row(
+                  children: [
+                    // CÁPSULA: Inventario (Visible para TODOS: admin, opt, opa)
+                    _buildCategoryPill(
+                      label: "Inventario",
+                      icon: Icons.inventory,
+                      color: const Color.fromARGB(255, 68, 174, 255),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => MonitorScreen(
+                              token: widget.token,
+                              role: widget.role,
+                              userName: widget.userName,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+
+                    // CÁPSULA: Entregas (Visible para TODOS: admin, opt, opa)
+                    const SizedBox(width: 12),
+                    _buildCategoryPill(
+                      label: "Entregas",
+                      icon: Icons.inventory_rounded,
+                      color: const Color.fromARGB(255, 43, 235, 72),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                EntregaLotesScreen(token: widget.token),
+                          ),
+                        );
+                      },
+                    ),
+
+                    // CÁPSULA: Lotes / Registrar Lotes (Visible para ADMIN y OPA)
+                    if (widget.role.toLowerCase() == 'administrador' ||
+                        widget.role.toLowerCase() == 'operario' ||
+                        widget.role.toLowerCase() == 'admin' ||
+                        widget.role.toLowerCase() == 'opa') ...[
+                      const SizedBox(width: 12),
+                      _buildCategoryPill(
+                        label: "Lotes",
+                        icon: Icons.archive_rounded,
+                        color: Colors.amber[600]!,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  CreacionLotesScreen(token: widget.token),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+
+                    // CÁPSULA: Conexión / Vincular Lotes (Visible SOLO para OPT)
+                    if (widget.role.toLowerCase() == 'transportista' ||
+                        widget.role.toLowerCase() == 'opt') ...[
+                      const SizedBox(width: 12),
+                      _buildCategoryPill(
+                        label: "Conexión",
+                        icon: Icons.local_shipping_rounded,
+                        color: const Color.fromARGB(255, 30, 197, 183),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  VinculacionScreen(token: widget.token),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+
+                    // CÁPSULA: Usuarios / Crear Usuarios (Visible SOLO para ADMIN)
+                    if (widget.role.toLowerCase() == 'administrador' ||
+                        widget.role.toLowerCase() == 'admin') ...[
+                      const SizedBox(width: 12),
+                      _buildCategoryPill(
+                        label: "Usuarios",
+                        icon: Icons.person_add_alt_1_rounded,
+                        color: const Color.fromARGB(255, 93, 95, 239),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  UsuariosScreen(token: widget.token),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              // accesos rapidos
+              const Padding(
+                padding: EdgeInsets.fromLTRB(24, 14, 24, 22),
+                child: Text(
+                  "Accesos rápidos",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: textMain,
+                    letterSpacing: -0.8,
+>>>>>>> Stashed changes
                   ),
                   const SizedBox(height: 24),
 
@@ -303,8 +707,15 @@ class _QuickChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
+<<<<<<< Updated upstream
           color: HomeScreen.cardColor,
           borderRadius: BorderRadius.circular(20),
+=======
+          // Fondo blanco limpio sin bordes
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          // Sombra sutil para despegar el botón del fondo claro
+>>>>>>> Stashed changes
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
@@ -319,12 +730,21 @@ class _QuickChip extends StatelessWidget {
             Icon(data.icon, size: 16, color: data.iconColor),
             const SizedBox(width: 7),
             Text(
+<<<<<<< Updated upstream
               data.label,
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
                 letterSpacing: -0.2,
                 color: HomeScreen.titleColor,
+=======
+              label,
+              style: const TextStyle(
+                color: Color(0xFF1E293B),
+                fontWeight: FontWeight.w400,
+                fontSize: 13,
+                letterSpacing: -0.25,
+>>>>>>> Stashed changes
               ),
             ),
           ],
@@ -334,6 +754,7 @@ class _QuickChip extends StatelessWidget {
   }
 }
 
+<<<<<<< Updated upstream
 // ─── Card data & dest ─────────────────────────────────────────────────────────
 enum _Dest { temperatura, lotes, inventario }
 
@@ -403,6 +824,41 @@ class _DashCard extends StatelessWidget {
                 topRight: Radius.circular(20),
               ),
               child: Container(
+=======
+  // Widget Constructor: Tarjetas de Acción del Cuerpo Principal
+  Widget _buildFeatureCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color accentColor,
+    required Color bannerColor,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap, //Se ejecuta la función al presionar
+          borderRadius: BorderRadius.circular(24),
+          splashColor: accentColor.withValues(alpha: 0.05),
+          highlightColor: accentColor.withValues(alpha: 0.02),
+          child: Column(
+            children: [
+              Container(
+                height: 130,
+>>>>>>> Stashed changes
                 width: double.infinity,
                 height: 150,
                 color: data.imagePlaceholderColor,
@@ -430,6 +886,7 @@ class _DashCard extends StatelessWidget {
                       color: data.iconColor.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
+<<<<<<< Updated upstream
                     child: Icon(data.icon, color: data.iconColor, size: 22),
                   ),
                   const SizedBox(width: 12),
@@ -453,6 +910,29 @@ class _DashCard extends StatelessWidget {
                             fontSize: 13,
                             color: HomeScreen.labelGray,
                             letterSpacing: -0.2,
+=======
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.5,
+                              color: textMain,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            subtitle,
+                            style: const TextStyle(
+                                fontSize: 13,
+                                color: textSecondary,
+                                letterSpacing: -0.2),
+>>>>>>> Stashed changes
                           ),
                         ),
                       ],

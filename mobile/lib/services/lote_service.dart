@@ -7,6 +7,7 @@ class LoteService {
   // Ajusta esta IP si usas emulador Android (10.0.2.2) o dispositivo real
   final String baseUrl = "http://127.0.0.1:8000";
 
+<<<<<<< Updated upstream
   /// Registra un nuevo lote en el ecosistema NutriTrack.
   /// Requiere el [token] obtenido en el Login para la política de seguridad OPA.
   Future<bool> registrarLote({
@@ -17,6 +18,31 @@ class LoteService {
     required double tempMaxIdeal,
     required int cantidad,
     required String passwordLote,
+=======
+  static String get _baseUrl {
+    if (kIsWeb) {
+      return "http://localhost:8000";
+    } else {
+      return "http://127.0.0.1:8000";
+    }
+  }
+
+  static const int _maxRetries = 2;
+
+  Map<String, String> _getHeaders(String token) => {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache',
+      };
+
+  /// OBTENCIÓN CON FILTRADO AVANZADO CRUZADO (MÓDULO AUDITORÍA)
+  /// Si rangoFecha es omitido, por defecto el backend aplicará "24h".
+  Future<List<Lote>> fetchLotes(
+    String token, {
+    String? username,
+    String? rangoFecha,
+>>>>>>> Stashed changes
   }) async {
     try {
       final response = await http
