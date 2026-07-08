@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  # Servicio 1: El Servidor API de FastAPI
+  backend:
+    build: ./backend
+    container_name: nutritrack_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - nutritrack_sqlite_data:/app/data
+    environment:
+      - DATABASE_URL=sqlite:////app/data/nutritrack.db
+
+  # Servicio 2: Tu simulador de sensores (IoT Industrial)
+  iot_industrial:
+    build: ./iot_industrial
+    container_name: nutritrack_iot
+    depends_on:
+      - backend
+    # 💡 SOLUCIÓN MAESTRA: Comparte la red con el backend. 
+    # Así 127.0.0.1 apuntará directamente a FastAPI.
+    network_mode: "service:backend"
+    stdin_open: true
+    tty: true
+
+volumes:
+  nutritrack_sqlite_data:
