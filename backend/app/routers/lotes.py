@@ -1,5 +1,5 @@
 from sqlalchemy import func
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import List
@@ -349,3 +349,47 @@ def marcar_como_entregado(
     db.commit()
     db.refresh(lote)
     return lote
+
+@router.get("/simulacion/gemelo-digital", response_model=List[schemas.LoteRead])
+def listar_lotes_simulacion_segura(
+    x_godot_key: str = Header(None, alias="X-Godot-Key"),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Endpoint protegido por API Key exclusivo para el motor 3D de Godot.
+    Calcula el estado térmico real en tiempo real según las mediciones del IoT.
+    """
+    CLAVE_SECRETA_SISTEMA = "NutriTrack_Godot_Secure_Token_2026"
+
+    if x_godot_key != CLAVE_SECRETA_SISTEMA:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Acceso Denegado: Credencial de simulación inválida o ausente."
+        )
+
+    lotes = db.query(models.Lote).order_by(models.Lote.id.desc()).all()
+
+    for lote in lotes:
+        # Extraer la última telemetría registrada por el IoT para este lote
+        ultima_t = db.query(models.Telemetria).filter(
+            models.Telemetria.lote_id == lote.id
+        ).order_by(models.Telemetria.id.desc()).first()
+        
+        lote.ultima_temperatura = ultima_t.temperatura if ultima_t else None
+
+        # 🟢 CORRECCIÓN DE ESTADO DINÁMICO: Evaluamos en tiempo real para Godot
+        if lote.ultima_temperatura is not None:
+            if lote.ultima_temperatura < lote.temp_min_ideal or lote.ultima_temperatura > lote.temp_max_ideal:
+                lote.estado_actual = "CRITICO"
+            else:
+                lote.estado_actual = "OPTIMO"
+        else:
+            lote.estado_actual = "ESPERANDO"
+
+        if lote.custodio_id:
+            transportista = db.query(models.User).filter(models.User.id == lote.custodio_id).first()
+            lote.custodio_username = transportista.username if transportista else None
+        else:
+            lote.custodio_username = None
+
+    return lotes
