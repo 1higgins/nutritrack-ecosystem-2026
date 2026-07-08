@@ -8,7 +8,8 @@ WORKDIR /app
 RUN pip install --no-cache-dir paho-mqtt requests
 
 # 4. Copiar el script real de simulación de tus sensores al contenedor
-COPY sensor_sim.py .
+COPY mqtt_sender.py .
+COPY mqtt_bridge.py .
 
 # 5. Ejecutar el script como un daemon continuo
-CMD ["python", "sensor_sim.py"]
+CMD ["python", "mqtt_sender.py", "mqtt_bridge.py"]
