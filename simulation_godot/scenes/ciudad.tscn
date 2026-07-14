@@ -1,0 +1,33 @@
+[gd_scene format=3 uid="uid://bdemyyokplm4i"]
+
+[ext_resource type="Texture2D" uid="uid://cojlxq8wd5d0e" path="res://assets/mapa.JPG" id="1_vgpgu"]
+[ext_resource type="Script" uid="uid://bf6erkwknd2p0" path="res://scripts/moto.gd" id="2_tdkfm"]
+[ext_resource type="Texture2D" uid="uid://desvsnhyhay8g" path="res://assets/moto.png" id="3_y1ry1"]
+[ext_resource type="PackedScene" uid="uid://ktm7k0co2o7l" path="res://addons/mqtt/mqtt.tscn" id="4_tdkfm"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_mq8aq"]
+radius = 30.0
+height = 60.0
+
+[node name="Ciudad" type="Node2D" unique_id=1326266502]
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=5897094]
+position = Vector2(2.0000267, 3.5000038)
+scale = Vector2(0.88158894, 1.3106996)
+texture = ExtResource("1_vgpgu")
+
+[node name="Moto" type="CharacterBody2D" parent="." unique_id=1453322081]
+script = ExtResource("2_tdkfm")
+
+[node name="Sprite2D" type="Sprite2D" parent="Moto" unique_id=1086462733]
+scale = Vector2(0.1, 0.1)
+texture = ExtResource("3_y1ry1")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Moto" unique_id=159763289]
+position = Vector2(1, 0)
+shape = SubResource("CapsuleShape2D_mq8aq")
+
+[node name="Camera2D" type="Camera2D" parent="Moto" unique_id=1075600165]
+position_smoothing_enabled = true
+
+[node name="MQTT" parent="Moto" unique_id=1845582590 instance=ExtResource("4_tdkfm")]
