@@ -1,0 +1,97 @@
+[gd_scene format=3 uid="uid://b8prvhjwr80vt"]
+
+[ext_resource type="Script" uid="uid://cji628jv0530k" path="res://scripts/Main.gd" id="1"]
+[ext_resource type="Script" uid="uid://dk50nqg35ltl6" path="res://scripts/RoadScroll.gd" id="2"]
+[ext_resource type="Texture2D" uid="uid://cnmlumkjtu4eh" path="res://assets/truck.png" id="4"]
+[ext_resource type="Texture2D" uid="uid://bkocy6rau3mgk" path="res://assets/background.png" id="5"]
+[ext_resource type="Script" uid="uid://qr6yl84f8qgp" path="res://addons/mqtt/mqtt.gd" id="5_c01mt"]
+[ext_resource type="PackedScene" uid="uid://ktm7k0co2o7l" path="res://addons/mqtt/mqtt.tscn" id="6_nxtc6"]
+
+[node name="Main" type="Node2D" unique_id=1685052832]
+script = ExtResource("1")
+
+[node name="Sky" type="ColorRect" parent="." unique_id=110224235]
+offset_right = 1280.0
+offset_bottom = 720.0
+color = Color(0.55, 0.78, 0.92, 1)
+
+[node name="BackgroundImage" type="TextureRect" parent="." unique_id=1883978806]
+offset_right = 1280.0
+offset_bottom = 500.0
+texture = ExtResource("5")
+stretch_mode = 6
+
+[node name="Ground" type="ColorRect" parent="." unique_id=1749626853]
+visible = false
+offset_top = 470.0
+offset_right = 1280.0
+offset_bottom = 570.0
+color = Color(0.34, 0.53, 0.28, 1)
+
+[node name="Road" type="ColorRect" parent="." unique_id=108581211]
+offset_top = 570.0
+offset_right = 1280.0
+offset_bottom = 720.0
+color = Color(0.16, 0.16, 0.18, 1)
+
+[node name="RoadLines" type="Node2D" parent="." unique_id=1678889013]
+position = Vector2(0, 645)
+script = ExtResource("2")
+
+[node name="Truck" type="Sprite2D" parent="." unique_id=1561174629]
+position = Vector2(300, 615)
+scale = Vector2(0.55, 0.55)
+texture = ExtResource("4")
+script = ExtResource("5_c01mt")
+
+[node name="MQTT" parent="Truck" unique_id=2058238529 instance=ExtResource("6_nxtc6")]
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=1843311974]
+
+[node name="HUD" type="Control" parent="CanvasLayer" unique_id=1010231068]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="PanelInfo" type="PanelContainer" parent="CanvasLayer/HUD" unique_id=1794138578]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 340.0
+offset_bottom = 132.0
+
+[node name="VBoxInfo" type="VBoxContainer" parent="CanvasLayer/HUD/PanelInfo" unique_id=214143139]
+layout_mode = 2
+
+[node name="LabelLote" type="Label" parent="CanvasLayer/HUD/PanelInfo/VBoxInfo" unique_id=495308457]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Lote #--"
+
+[node name="LabelTemp" type="Label" parent="CanvasLayer/HUD/PanelInfo/VBoxInfo" unique_id=1827403720]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Temp: --"
+
+[node name="LabelEstado" type="Label" parent="CanvasLayer/HUD/PanelInfo/VBoxInfo" unique_id=1467907922]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Conectando con NutriTrack..."
+
+[node name="PanelAlerta" type="PanelContainer" parent="CanvasLayer/HUD" unique_id=1869128978]
+self_modulate = Color(0.85, 0.15, 0.15, 0.9)
+layout_mode = 0
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -230.0
+offset_top = 20.0
+offset_right = 230.0
+offset_bottom = 68.0
+
+[node name="LabelAlerta" type="Label" parent="CanvasLayer/HUD/PanelAlerta" unique_id=107045592]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.85, 1)
+theme_override_font_sizes/font_size = 20
+text = "⚠ ALERTA: RUPTURA DE CADENA DE FRÍO ⚠"
+horizontal_alignment = 1
