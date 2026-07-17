@@ -1,176 +1,136 @@
-# NutriTrack Ecosystem
+# NutriTrack Ecosystem 2026
 
-**Universidad Nacional Mayor de San Marcos** — Facultad de Ingeniería de Sistemas e Informática — Desarrollo Basado en Plataformas.
-
-Presentado por el **Grupo 10**:
-
-- **Alvarez Chancafe, Fabian Matias**
-- **Flores Quispe, Cristhian Alexi**
-- **Gomez Huallanca, Jhonatan Jesus**
-- **Gomez Levano, Enrique Guillermo**
-
-Monorepo del ecosistema NutriTrack: plataforma de monitoreo de cadena de frío para transporte de productos perecibles.
+**Universidad Nacional Mayor de San Marcos (UNMSM)** — Facultad de Ingeniería de Sistemas e Informática — Desarrollo Basado en Plataformas, Ciclo 2026-I.
 
 ---
 
-## Descripción del Proyecto
+## Descripción y Arquitectura
 
-El monorepo se organiza en cuatro módulos independientes que se comunican entre sí para conformar un sistema de monitoreo de cadena de frío de extremo a extremo.
+NutriTrack Ecosystem es un sistema distribuido de monitoreo en tiempo real diseñado para garantizar la integridad térmica de la cadena de frío alimentaria. El ecosistema se compone de cuatro plataformas autónomas que intercambian datos mediante contratos HTTP protegidos con autenticación JWT/OAuth2.
 
-### `backend/`
+**Backend (FastAPI + SQLite).** Núcleo central del ecosistema, ubicado en `backend/`. Implementado en Python 3.10+ con FastAPI como framework ASGI, SQLAlchemy 2.0 como ORM y SQLite con WAL como motor de persistencia. Recibe telemetría de los sensores IoT, ejecuta un motor de diagnóstico basado en máquina de estados finitos para clasificar cada lote como OPTIMO, ALERTA o CRITICO, y expone los datos a las demás plataformas mediante endpoints REST. Los archivos `.db`, `.db-shm` y `.db-wal` están excluidos del repositorio vía `.gitignore`; la base de datos se genera automáticamente en el primer arranque del servidor junto con un usuario semilla `Epsilon` (rol `admin`, contraseña `a12345`).
 
-API REST construida con **FastAPI**. Gestiona la persistencia de datos en **SQLite** (los archivos `.db`, `.db-shm` y `.db-wal` no se suben al repositorio) y protege todos los endpoints mediante autenticación **JWT** con OAuth2. Implementa un modelo RBAC con tres roles (`admin`, `OPA`, `OPT`) y una máquina de estados que clasifica cada lectura de telemetría en `OPTIMO`, `ALERTA` o `CRITICO`. Al arrancar, siembra automáticamente el usuario administrador maestro `Epsilon`.
+**Mobile (Flutter/Dart).** Interfaz de operación en campo ubicada en `mobile/`. Construida con Flutter SDK 3.0+ y Material Design 3, soporta despliegue en Web, Android, iOS y Desktop. Permite a los operarios (roles OPA y OPT) crear lotes con rangos térmicos, vincular custodias mediante handshake con contraseña, visualizar alertas térmicas con gráficas de serie temporal (Syncfusion Charts) y cerrar formalmente la custodia logística.
 
-### `mobile/`
+**IoT Industrial (Python).** Capa de sensores simulados ubicada en `iot_industrial/`. El script principal `sensor_sim.py` implementa un agente autónomo que se autentica contra el backend, obtiene un JWT, y transmite lecturas de temperatura y humedad cada 5 segundos con fluctuaciones aleatorias que simulan picos de calor. Incluye re-autenticación automática ante expiración del token y detección de cierre de lote. Complementariamente, `mqtt_sender.py` y `mqtt_bridge.py` soportan una topología distribuida mediante MQTT con el broker público `broker.hivemq.com`.
 
-Aplicación móvil desarrollada en **Flutter**. Proporciona la interfaz de operario para que los usuarios con rol OPA (Operador de Almacén) y OPT (Operador de Transporte) gestionen lotes, vinculen custodias de carga y visualicen el historial de telemetría con gráficas en tiempo real. Se puede ejecutar como aplicación web durante el desarrollo.
-
-### `iot_industrial/`
-
-Red distribuida basada en el protocolo **MQTT**. Contiene dos componentes:
-
-- **`mqtt_sender.py`**: Simula un sensor embebido en el camión de transporte. Se autentica contra el backend para obtener la lista de lotes activos y publica lecturas de temperatura y humedad en el broker MQTT público (`broker.hivemq.com`) bajo el tópico `fisi/nutritrack/lotes/{id}/telemetria`, con un intervalo de 5 segundos.
-- **`mqtt_bridge.py`**: Middleware que se suscribe al broker MQTT, captura cada mensaje publicado por el sender, se autentica contra el backend para obtener un token JWT y reenvía la telemetría al endpoint `POST /telemetria/` del backend mediante HTTP.
-
-### `simulation_godot/`
-
-Simulación en **Godot Engine** (2D). Renderiza un mapa top-down con el trayecto de un vehículo de transporte. El gemelo digital realiza polling al backend y cambia dinámicamente el color del vehículo según el estado de la carga térmica: verde para `OPTIMO`, amarillo para `ALERTA` y rojo para `CRITICO`.
+**Gemelo Digital (Godot Engine 4.x).** Simulador 3D de almacén logístico ubicado en `simulation_godot/`. Los archivos de escenas, scripts GDScript y assets 3D se encuentran en proceso de subida al repositorio. Su función final consiste en hacer polling HTTP al backend y, cuando un lote alcanza el estado CRITICO, renderizar el pallet correspondiente con una animación de parpadeo en rojo, proporcionando una señal visual inmediata para supervisores de planta.
 
 ---
 
-## Guía de Inicio Rápido
+## Roles del Equipo
 
-Se requieren **cuatro terminales** ejecutándose de forma simultánea. Todas las rutas son relativas a la raíz del monorepo.
+**Backend Lead.** Diseña e implementa la API REST, el modelo de datos relacional, el motor de alertas con máquina de estados, la seguridad JWT/RBAC y la persistencia SQLite.
 
-### Terminal 1 — Backend (FastAPI)
+**Mobile Dev.** Desarrolla la interfaz Flutter para operarios, la integración HTTP con el backend, las gráficas térmicas, el flujo de login persistente y la navegación por roles.
+
+**IoT Engineer.** Implementa los agentes de telemetría simulada, la lógica de reconexión resiliente, el puente MQTT-HTTP y el protocolo de autenticación Bearer Token.
+
+**Sim Manager.** Modela el entorno 3D del almacén en Godot, programa las entidades pallet con interpolación de color y la integración HTTP para polling de estados.
+
+---
+
+## Instrucciones de Ejecución
+
+Prerrequisitos: Python 3.10+, Flutter SDK 3.0+, Godot Engine 4.x.
+
+### Levantar el Backend
 
 ```bash
 cd backend
-venv\Scripts\activate
-uvicorn app.main:app --reload
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-El servidor estará disponible en `http://127.0.0.1:8000`. La documentación interactiva de la API se genera automáticamente en `http://127.0.0.1:8000/docs`.
+Verificar accediendo a `http://127.0.0.1:8000/docs` para la documentación Swagger. En el primer arranque se crea la base de datos y el usuario `Epsilon` (admin / `a12345`).
 
-### Terminal 2 — Mobile (Flutter)
+### Ejecutar la App Mobile
 
 ```bash
 cd mobile
+flutter pub get
 flutter run -d web-server
 ```
 
-Flutter compilará la aplicación y la servirá en un puerto local accesible desde el navegador.
+Acceder a la URL que Flutter indica en la terminal. La app se conecta por defecto a `http://127.0.0.1:8000`.
 
-### Terminal 3 — IoT Bridge (MQTT Middleware)
+### Ejecutar los Sensores IoT
 
-```bash
-cd iot_industrial
-venv\Scripts\activate
-python mqtt_bridge.py
-```
-
-El bridge se autenticará contra el backend, se conectará al broker MQTT y quedará en escucha permanente del tópico `fisi/nutritrack/lotes/+/telemetria`.
-
-### Terminal 4 — IoT Sender (Simulador de Sensor)
+Requiere que el backend esté corriendo previamente.
 
 ```bash
 cd iot_industrial
-venv\Scripts\activate
-python mqtt_sender.py
+python sensor_sim.py
 ```
 
-El sender se autenticará contra el backend, consultará los lotes disponibles y comenzará a publicar lecturas simuladas de temperatura y humedad cada 5 segundos.
+El agente solicita usuario y contraseña, autentica contra el backend, pide el código del lote y comienza la transmisión de telemetría cada 5 segundos.
 
 ---
 
 ## Contratos de API
 
-Base URL: `http://127.0.0.1:8000`
+Todos los endpoints están protegidos por JWT/OAuth2 excepto `POST /token`. Las solicitudes autenticadas requieren el header `Authorization: Bearer <access_token>`. Por convención del proyecto, todas las respuestas JSON utilizan listas `[]` en lugar de sets `{}` para garantizar secuenciación predecible y compatibilidad con `List<T>` de Dart y `Array` de GDScript.
 
-### `POST /token`
+### POST /token
 
-Autentica a un usuario y devuelve un token JWT. Utiliza el estándar OAuth2 con `application/x-www-form-urlencoded`.
+Autenticación OAuth2 que emite un JWT con validez de 240 minutos. Se envía como `application/x-www-form-urlencoded` con los campos `username` y `password`. No requiere autenticación previa.
 
-**Request**
-
-| Campo      | Tipo   | Requerido | Descripción              |
-|------------|--------|-----------|--------------------------|
-| `username` | string | Sí        | Nombre de usuario.       |
-| `password` | string | Sí        | Contraseña en texto plano. |
-
-```bash
-curl -X POST http://127.0.0.1:8000/token \
-  -d "username=Epsilon&password=a12345"
-```
-
-**Response `200 OK`**
+Respuesta exitosa (200):
 
 ```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "token_type": "bearer",
-  "role": "admin"
+  "role": "admin",
+  "username": "Epsilon"
 }
 ```
 
----
+Respuesta de error (401):
 
-### `POST /telemetria/`
-
-Registra una lectura de telemetría para un lote. Requiere autenticación JWT (header `Authorization: Bearer <token>`). El backend ejecuta la máquina de estados para determinar el diagnóstico y el nuevo estado del lote.
-
-**Request**
-
-| Campo         | Tipo  | Requerido | Restricción          | Descripción                    |
-|---------------|-------|-----------|----------------------|--------------------------------|
-| `temperatura` | float | Sí        | `-50.0` a `100.0`    | Temperatura en grados Celsius. |
-| `humedad`     | float | Sí        | `0.0` a `100.0`      | Humedad relativa en porcentaje.|
-| `lote_id`     | int   | Sí        | ID existente en la DB | Identificador del lote.        |
-
-```bash
-curl -X POST http://127.0.0.1:8000/telemetria/ \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"temperatura": -18.5, "humedad": 55.0, "lote_id": 1}'
+```json
+{
+  "detail": "Credenciales incorrectas"
+}
 ```
 
-**Response `201 Created`**
+### POST /telemetria/
+
+Registro de lecturas de sensores IoT. Requiere autenticación Bearer JWT. Se envía como `application/json` con los campos `lote_id` (int, ID existente), `temperatura` (float, rango -50.0 a 100.0) y `humedad` (float, rango 0.0 a 100.0). El backend ejecuta la máquina de estados de alerta y persiste el resultado con diagnóstico textual.
+
+Ejemplo de request:
+
+```json
+{
+  "lote_id": 1,
+  "temperatura": -12.5,
+  "humedad": 58.3
+}
+```
+
+Respuesta exitosa (201):
 
 ```json
 {
   "id": 42,
-  "temperatura": -18.5,
-  "humedad": 55.0,
-  "fecha_registro": "2026-07-12T21:00:00.000000",
+  "temperatura": -12.5,
+  "humedad": 58.3,
   "diagnostico": "Sistema operando en parámetros ideales",
-  "usuario_id": 1
+  "usuario_id": 1,
+  "fecha_registro": "2026-07-07T06:30:00.000000"
 }
 ```
 
----
+Códigos de error: 400 si el lote está cerrado, 401 si el JWT es inválido o ausente, 403 si el usuario no tiene custodia activa, 404 si el lote no existe, 500 por error interno de persistencia.
 
-### Códigos de Error
-
-| Código | Significado                | Contexto                                                                                           |
-|--------|----------------------------|----------------------------------------------------------------------------------------------------|
-| `400`  | Bad Request                | Datos de entrada inválidos o el lote ya fue marcado como entregado.                               |
-| `401`  | Unauthorized               | Token JWT ausente, expirado o con firma inválida.                                                 |
-| `403`  | Forbidden                  | El usuario autenticado no tiene custodia activa sobre el lote o su rol no permite la operación.   |
-| `404`  | Not Found                  | El `lote_id` proporcionado no existe en la base de datos.                                         |
-| `500`  | Internal Server Error      | Error de persistencia en la base de datos. Se ejecuta rollback automático.                        |
-
----
-
-### Estados de la Máquina de Estados Térmicos
-
-| Estado     | Condición                                                                                                                                          |
-|------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
-| `OPTIMO`   | La temperatura se encuentra dentro del rango `[temp_min_ideal, temp_max_ideal]` definido para el lote.                                             |
-| `ALERTA`   | La temperatura excedió el rango ideal pero permanece dentro del margen de tolerancia de 3 °C. Solo se asigna si el estado anterior era `OPTIMO`.   |
-| `CRITICO`  | La temperatura superó el margen de tolerancia, o bien se encuentra en zona de alerta pero el estado anterior no era `OPTIMO` (recuperación parcial o primera lectura). |
+Los estados de diagnóstico son OPTIMO (temperatura dentro de rango ideal), ALERTA (fuera de rango por margen menor o igual a 3°C, viniendo de OPTIMO) y CRITICO (fuera de rango por más de 3°C, o primera lectura fuera de rango).
 
 ---
 
 ## Interoperabilidad
 
-El sensor simulado (`mqtt_sender.py`) genera lecturas de temperatura y humedad y las publica como mensaje JSON en el broker MQTT público `broker.hivemq.com` bajo el tópico `fisi/nutritrack/lotes/{lote_id}/telemetria`. El middleware (`mqtt_bridge.py`), que permanece suscrito a ese mismo broker, captura cada mensaje entrante, extrae el identificador del lote desde la estructura del tópico, se autentica contra el backend para obtener un token JWT válido y ejecuta un `POST /telemetria/` con la carga útil estructurada. El backend recibe la petición, valida la jurisdicción del usuario sobre el lote mediante RBAC, ejecuta la máquina de estados térmicos para clasificar la lectura como `OPTIMO`, `ALERTA` o `CRITICO`, genera un diagnóstico textual y persiste el registro completo en SQLite. Finalmente, el gemelo digital implementado en Godot realiza polling periódico al backend, obtiene el estado actualizado del lote y renderiza el vehículo en el mapa 2D cambiando su color a rojo cuando el estado transiciona a `CRITICO`.
+El sensor IoT detecta una anomalía térmica y envía la lectura mediante `POST /telemetria/` con su Bearer Token JWT; el backend recibe el POST, valida la firma JWT (HS256), verifica la jurisdicción RBAC del usuario, ejecuta la máquina de estados finitos que transiciona el lote al estado correspondiente (OPTIMO, ALERTA o CRITICO), genera un diagnóstico textual, persiste la lectura en SQLite y retorna el resultado con código 201; finalmente, el gemelo digital en Godot realiza polling HTTP periódico al backend y, al detectar que un lote alcanzó el estado CRITICO, renderiza el pallet asociado con una animación de parpadeo en rojo que alerta visualmente al supervisor de planta.
+
+---
+
+*NutriTrack Ecosystem 2026 — UNMSM · Facultad de Ingeniería de Sistemas e Informática*
