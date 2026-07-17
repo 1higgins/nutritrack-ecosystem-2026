@@ -72,7 +72,7 @@ class _MonitorScreenState extends State<MonitorScreen>
     super.initState();
     _loadData();
     // Polling silencioso cada 15 segundos
-    _pollingTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted) _silentRefresh();
     });
   }
